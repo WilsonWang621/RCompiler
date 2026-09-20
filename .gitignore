@@ -13,3 +13,6 @@ __pycache__/
 # Local files
 dev/
 *.local.*
+
+test/
+PLAN.md
