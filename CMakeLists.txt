@@ -35,6 +35,8 @@ FetchContent_MakeAvailable(antlr4_runtime)
 
 add_executable(compiler
     src/main.cpp
+    src/ast/ast.cpp
+    src/frontend/ast_builder.cpp
     generated/Lexer.cpp
     generated/Parser.cpp
     generated/ParserBaseVisitor.cpp
