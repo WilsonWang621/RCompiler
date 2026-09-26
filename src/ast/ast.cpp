@@ -11,6 +11,9 @@ namespace rx::ast{
     void BlockExpr::dump(std::ostream &out, int indent) const {
         printIndent(out, indent);
         out << "Block\n";
+        for (const auto &statement : stmts_) {
+            statement->dump(out, indent + 1);
+        }
     }
 
     void FunctionItem::dump(std::ostream &out, int indent) const {
@@ -28,4 +31,14 @@ namespace rx::ast{
         }
     }
 
+    void LetStmt::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "LetStmt: " << name_ << '\n';
+        initializer_->dump(out, indent + 1);
+    }
+
+    void IntegerLiteralExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "IntegerLiteral: " << text_ << '\n';
+    }
 }

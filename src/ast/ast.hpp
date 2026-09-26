@@ -35,7 +35,11 @@ public:
 };
 
 class BlockExpr final : public Expr{
+    std::vector<StmtPtr> stmts_;
 public:
+    void addStatement(StmtPtr statement){ 
+        stmts_.push_back(std::move(statement));
+    }
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
@@ -49,4 +53,23 @@ public:
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
+//version 1.1
+class LetStmt final : public Stmt{
+    std::string name_;
+    ExprPtr initializer_;
+
+public:
+    LetStmt(std::string name, ExprPtr initializer):name_(std::move(name)), initializer_(std::move(initializer)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class IntegerLiteralExpr final : public Expr{
+    std::string text_;
+
+public:
+    IntegerLiteralExpr(std::string text):text_(std::move(text)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 }
