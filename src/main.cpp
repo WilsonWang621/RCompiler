@@ -8,6 +8,7 @@
 
 #include "Lexer.h"
 #include "Parser.h"
+#include "ast_builder.hpp"
 
 namespace {
 
@@ -112,7 +113,7 @@ int run(const Options &options) {
   lexer.addErrorListener(&diagnostics);
   parser.addErrorListener(&diagnostics);
 
-  antlr4::tree::ParseTree *tree = parser.crate();
+  auto *tree = parser.crate();
   if (diagnostics.error_count() != 0) {
     return 1;
   }
@@ -123,6 +124,11 @@ int run(const Options &options) {
 
   if (options.stage == "semantic") {
     // The semantic-analysis passes will be invoked here once implemented.
+    rx::frontend::ASTBuilder builder;
+
+    auto astRoot = builder.build(tree);
+
+    astRoot->dump(std::cout);
     return 0;
   }
 

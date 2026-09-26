@@ -45,6 +45,8 @@ add_executable(compiler
 
 target_compile_definitions(compiler PRIVATE ANTLR4CPP_STATIC)
 target_include_directories(compiler PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ast
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${antlr4_runtime_SOURCE_DIR}/runtime/src
 )

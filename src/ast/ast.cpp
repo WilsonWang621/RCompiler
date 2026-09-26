@@ -23,6 +23,9 @@ namespace rx::ast{
     void Crate::dump(std::ostream &out, int indent) const{
         printIndent(out, indent);
         out << "Crate\n";
+        for(const auto &item : items){
+            item->dump(out, indent + 1);
+        }
     }
 
 }
