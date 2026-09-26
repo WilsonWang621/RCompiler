@@ -3,12 +3,13 @@
 #include<vector>
 #include<memory>
 #include<string>
+#include<iostream>
 
 namespace rx::ast{
 
 struct ASTNode{
     virtual ~ASTNode() = default;
-    virtual void dump(std::ostream &out, int  = 0) const = 0;
+    virtual void dump(std::ostream &out, int indent = 0) const = 0;
 };
 
 class Item : public ASTNode {};
@@ -29,7 +30,7 @@ public:
     void addItem(ItemPtr item){
         items.push_back(std::move(item));
     }
-    
+
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
@@ -44,6 +45,8 @@ private:
     std::unique_ptr<BlockExpr> body_;
 public:
     FunctionItem(std::string name, std::unique_ptr<BlockExpr> body):name_(std::move(name)), body_(std::move(body)){};
-}
+        
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 
 }
