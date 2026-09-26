@@ -41,4 +41,12 @@ namespace rx::ast{
         printIndent(out, indent);
         out << "IntegerLiteral: " << text_ << '\n';
     }
+
+    void BinaryExpr::dump(std::ostream &out, int indent) const {
+        printIndent(out, indent);
+        out << "BinaryExpr: " << op_ << '\n';
+
+        left_->dump(out, indent + 1);
+        right_->dump(out, indent + 1);
+    }
 }

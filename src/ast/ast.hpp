@@ -72,4 +72,17 @@ public:
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+//1.2
+class BinaryExpr final : public Expr {
+private:
+    std::string op_;
+    ExprPtr left_;
+    ExprPtr right_;
+
+public:
+    BinaryExpr(std::string op, ExprPtr left, ExprPtr right): op_(std::move(op)), left_(std::move(left)), right_(std::move(right)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 }

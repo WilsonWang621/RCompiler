@@ -14,7 +14,7 @@ __pycache__/
 dev/
 *.local.*
 
-test/
+tmp/
 PLAN.md
 
 example.rx

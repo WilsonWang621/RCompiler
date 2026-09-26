@@ -16,6 +16,14 @@ void requireSingleChild(antlr4::ParserRuleContext *ctx) {
 } // namespace
 
 namespace rx::frontend{
+
+std::unique_ptr<ast::Crate> ASTBuilder::build(rx::Parser::CrateContext *ctx){
+    auto result = std::make_unique<ast::Crate>();
+    for(auto itemCtx : ctx->item()){
+        result->addItem(buildItem(itemCtx));
+    }
+    return result;
+}
     
 std::unique_ptr<ast::Item> ASTBuilder::buildItem(rx::Parser::ItemContext *ctx){
     if (ctx->functionDefinition() != nullptr) {
@@ -101,6 +109,8 @@ ast::ExprPtr ASTBuilder::buildExpression(rx::Parser::ExpressionContext *ctx){
     auto *shift = bitAnd->shiftExpression(0);
     requireSingleChild(shift);
 
+    return buildAdditive(shift->additiveExpression(0));
+
     auto *additive = shift->additiveExpression(0);
     requireSingleChild(additive);
 
@@ -151,12 +161,74 @@ ast::ExprPtr ASTBuilder::buildLiteral(rx::Parser::LiteralExpressionContext *ctx)
     );
 }
 
-std::unique_ptr<ast::Crate> ASTBuilder::build(rx::Parser::CrateContext *ctx){
-    auto result = std::make_unique<ast::Crate>();
-    for(auto itemCtx : ctx->item()){
-        result->addItem(buildItem(itemCtx));
+ast::ExprPtr ASTBuilder::buildAdditive(rx::Parser::AdditiveExpressionContext *ctx){
+    auto operands = ctx->multiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+
+    // 先构造第一个操作数。
+    auto result = buildMultiplicative(operands[0]);
+
+    // 从左到右，逐次把已有结果作为新的左孩子。
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        std::string op = operators[i]->getText();
+        auto right = buildMultiplicative(operands[i + 1]);
+
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
     }
+
     return result;
+}
+
+ast::ExprPtr ASTBuilder::buildMultiplicative(rx::Parser::MultiplicativeExpressionContext *ctx) {
+    auto operands = ctx->castExpression();
+    auto operators = ctx->multiplicativeOperator();
+
+    auto result = buildCast(operands[0]);
+
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        std::string op = operators[i]->getText();
+        auto right = buildCast(operands[i + 1]);
+
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildCast(rx::Parser::CastExpressionContext *ctx) {
+    // 暂时不支持 as 类型转换。
+    requireSingleChild(ctx);
+
+    auto *unary = ctx->unaryExpression();
+
+    // 暂时不支持 -x、!x 等一元运算。
+    requireSingleChild(unary);
+
+    auto *postfix = unary->postfixExpression();
+
+    // 暂时不支持调用、下标、字段访问。
+    requireSingleChild(postfix);
+
+    auto *primary = postfix->primaryExpression();
+    requireSingleChild(primary);
+
+    auto *nonBlock = primary->nonBlockPrimary();
+
+    if (nonBlock == nullptr || nonBlock->literalExpression() == nullptr) {
+        throw std::runtime_error(
+            "only literal primary expressions are supported for now"
+        );
+    }
+
+    return buildLiteral(nonBlock->literalExpression());
 }
 
 }
