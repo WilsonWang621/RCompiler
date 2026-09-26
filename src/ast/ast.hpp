@@ -6,103 +6,44 @@
 
 namespace rx::ast{
 
-// basic node
-struct Info{ // store the pos and info of source code for debugging
-    std::size_t begin;
-    std::size_t end;
-    std::size_t line;
-};
 struct ASTNode{
-    Info info;
     virtual ~ASTNode() = default;
+    virtual void dump(std::ostream &out, int  = 0) const = 0;
 };
 
-struct Item;
-struct Type;
-struct Expr;
-struct Stmt;
-struct ConstExpr;
+class Item : public ASTNode {};
+
+class Stmt : public ASTNode {};
+
+class Expr : public ASTNode {};
 
 using ItemPtr = std::unique_ptr<Item>;
-using TypePtr = std::unique_ptr<Type>;
 using ExprPtr = std::unique_ptr<Expr>;
 using StmtPtr = std::unique_ptr<Stmt>;
-using ConstExprPtr = std::unique_ptr<ConstExpr>;
 
 //the top floor
-struct Crate {
-    std::vector<std::unique_ptr<Item>> items;
-};
-//the first floor
-struct Item{
-    enum class Kind{
-        Use,
-        Func,
-        Struct,
-        Const,
-        Imply,
-    };
-    Kind kind_;
+class Crate : public ASTNode{
+    std::vector<ItemPtr> items;
 
-    Item(Kind kind):kind_(kind){};
+public:
+    void addItem(ItemPtr item){
+        items.push_back(std::move(item));
+    }
+    
+    void dump(std::ostream &out, int indent = 0) const override;
 };
 
-//some preparations
-struct Lifetime{
-    Info info_;
-    std::string name;
+class BlockExpr final : public Expr{
+public:
+    void dump(std::ostream &out, int indent = 0) const override;
 };
 
-enum class PathNameKind {
-  Identifier,
-  SelfValue, // self
-  SelfType,  // Self
-  Super,
-  Crate,
-};
+class FunctionItem final : public Item{
+private:
+    std::string name_;
+    std::unique_ptr<BlockExpr> body_;
+public:
+    FunctionItem(std::string name, std::unique_ptr<BlockExpr> body):name_(std::move(name)), body_(std::move(body)){};
+}
 
-struct PathSegment{
-    Info info_;
-    PathNameKind kind_;
-    std::string name;
-};
-
-struct UseTree : ASTNode{ //a recursive structure
-
-};
-
-//the second floor
-struct UseItem : Item{
-    UseItem() : Item(Kind::Use){};
-    std::unique_ptr<UseTree> tree;
-};
-
-//Type Node
-
-//const expression
-
-//function
-
-//Struct
-
-//Impl
-
-//Expression base class
-struct Expr : ASTNode{
-    enum class Kind{
-        IntegerLiteral,
-        BooleanLiteral,
-        Path,
-        Block,
-        Operator, 
-        Unit, 
-        Array,
-        Struct, 
-        Call
-    };
-
-    explicit Expr(Kind kind) : kind_(kind){};
-
-    Kind kind_;
-};
 }
