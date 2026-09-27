@@ -85,4 +85,14 @@ public:
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+class UnaryExpr final : public Expr{
+    std::string op_;
+    ExprPtr operand_;
+
+public:
+    UnaryExpr(std::string op, ExprPtr operand): op_(std::move(op)), operand_(std::move(operand)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 }

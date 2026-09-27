@@ -49,4 +49,11 @@ namespace rx::ast{
         left_->dump(out, indent + 1);
         right_->dump(out, indent + 1);
     }
+
+    void UnaryExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "UnaryExpr: " << op_ << '\n';
+
+        operand_->dump(out, indent + 1);
+    }
 }

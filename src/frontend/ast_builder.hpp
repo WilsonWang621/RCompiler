@@ -28,6 +28,12 @@ class ASTBuilder final : public ParserBaseVisitor{
     ast::ExprPtr buildMultiplicative(rx::Parser::MultiplicativeExpressionContext *ctx);
 
     ast::ExprPtr buildCast(rx::Parser::CastExpressionContext *ctx);
+
+    ast::ExprPtr buildUnary(rx::Parser::UnaryExpressionContext *ctx);
+
+    ast::ExprPtr buildPostfix(rx::Parser::PostfixExpressionContext *ctx);
+
+    ast::ExprPtr buildPrimary(rx::Parser::PrimaryExpressionContext *ctx);
 public:
     std::unique_ptr<ast::Crate> build(rx::Parser::CrateContext *ctx);
 };

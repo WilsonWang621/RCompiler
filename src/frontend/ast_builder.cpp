@@ -204,31 +204,73 @@ ast::ExprPtr ASTBuilder::buildMultiplicative(rx::Parser::MultiplicativeExpressio
 }
 
 ast::ExprPtr ASTBuilder::buildCast(rx::Parser::CastExpressionContext *ctx) {
-    // 暂时不支持 as 类型转换。
-    requireSingleChild(ctx);
+    if (!ctx->typeRef().empty()) {
+        throw std::runtime_error("as casts are not supported yet");
+    }
 
-    auto *unary = ctx->unaryExpression();
+    return buildUnary(ctx->unaryExpression());
+}
 
-    // 暂时不支持 -x、!x 等一元运算。
-    requireSingleChild(unary);
+ast::ExprPtr ASTBuilder::buildUnary(rx::Parser::UnaryExpressionContext *ctx){
+    //two branches 1)has prefix operator, build recursively  2) otherwise give it to next floor postfixExpression directly
+    if(ctx->unaryOperator() != nullptr){
+        std::string op = ctx->unaryOperator()->getText();
 
-    auto *postfix = unary->postfixExpression();
+        // std::cerr << op << '\n';
 
-    // 暂时不支持调用、下标、字段访问。
-    requireSingleChild(postfix);
+        // 本次支持取负和取反。
+        // 解引用、借用等操作留到后面。
+        if(op != "-" && op != "!"){
+            throw std::runtime_error{"this unary is not supported yet"};
+        }
 
-    auto *primary = postfix->primaryExpression();
-    requireSingleChild(primary);
+        auto operand = buildUnary(ctx->unaryExpression());
 
-    auto *nonBlock = primary->nonBlockPrimary();
+        return std::make_unique<ast::UnaryExpr>(
+            std::move(op),
+            std::move(operand)
+        );
+    }
+    return buildPostfix(ctx->postfixExpression());
+}
 
-    if (nonBlock == nullptr || nonBlock->literalExpression() == nullptr) {
+ast::ExprPtr ASTBuilder::buildPostfix(rx::Parser::PostfixExpressionContext *ctx){
+    if(!ctx->postfixSuffix().empty()){
+        throw std::runtime_error{"postfix operations are not supported yet"};
+    }
+
+    return buildPrimary(ctx->primaryExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx) {
+    auto *nonBlock = ctx->nonBlockPrimary();
+
+    if (nonBlock == nullptr) {
         throw std::runtime_error(
-            "only literal primary expressions are supported for now"
+            "block-like expressions are not supported here yet"
         );
     }
 
-    return buildLiteral(nonBlock->literalExpression());
-}
+    // 分支一：字面量，例如 1。
+    if (nonBlock->literalExpression() != nullptr) {
+        return buildLiteral(nonBlock->literalExpression());
+    }
 
+    // 分支二：括号表达式，例如 (1 + 2)。
+    if (nonBlock->LPAREN() != nullptr) {
+        auto *inner = nonBlock->expression();
+
+        if (inner == nullptr) {
+            throw std::runtime_error(
+                "unit expression () is not supported yet"
+            );
+        }
+
+        return buildExpression(inner);
+    }
+
+    throw std::runtime_error(
+        "this primary expression is not supported yet"
+    );
+}
 }
