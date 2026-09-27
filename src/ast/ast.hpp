@@ -56,13 +56,24 @@ public:
 //version 1.1
 class LetStmt final : public Stmt{
     std::string name_;
+    bool isMutable_;
     ExprPtr initializer_;
 
 public:
-    LetStmt(std::string name, ExprPtr initializer):name_(std::move(name)), initializer_(std::move(initializer)){};
+    LetStmt(std::string name, bool isMutable, ExprPtr initializer):name_(std::move(name)), isMutable_(isMutable), initializer_(std::move(initializer)){};
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+class ExprStmt final : public Stmt {
+    ExprPtr expression_;
+
+public:
+    ExprStmt(ExprPtr expression): expression_(std::move(expression)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
 
 class IntegerLiteralExpr final : public Expr{
     std::string text_;
@@ -101,6 +112,17 @@ class PathExpr final : public Expr{
 
 public:
     explicit PathExpr(std::vector<std::string> segments) : segments_(std::move(segments)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class AssignExpr final : public Expr {
+private:
+    ExprPtr target_;
+    ExprPtr value_;
+
+public:
+    AssignExpr(ExprPtr target, ExprPtr value): target_(std::move(target)), value_(std::move(value)) {}
 
     void dump(std::ostream &out, int indent = 0) const override;
 };

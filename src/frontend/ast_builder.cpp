@@ -8,7 +8,7 @@ namespace {
 void requireSingleChild(antlr4::ParserRuleContext *ctx) {
     if (ctx == nullptr || ctx->children.size() != 1) {
         throw std::runtime_error(
-            "only plain integer literal expressions are supported for now"
+           "this expression form is not supported yet"
         );
     }
 }
@@ -62,18 +62,16 @@ std::unique_ptr<ast::BlockExpr> ASTBuilder::buildBlock(rx::Parser::BlockExpressi
 std::unique_ptr<ast::LetStmt> ASTBuilder::buildLet(rx::Parser::LetStatementContext *ctx){
     auto *binding = ctx->identifierBinding();
 
-    if (binding->MUT() != nullptr) {
-        throw std::runtime_error("let mut is not supported yet");
-    }
     if (ctx->typeRef() != nullptr) {
         throw std::runtime_error("type annotations are not supported yet");
     }
 
     std::string name = binding->identifier()->getText();
+    bool isMutable = binding->MUT() != nullptr;
     //Recursively construct the initialization expression
     auto initializer = buildExpression(ctx->expression());
 
-    return std::make_unique<ast::LetStmt>(std::move(name), std::move(initializer));
+    return std::make_unique<ast::LetStmt>(std::move(name), isMutable, std::move(initializer));
 }
 
 ast::StmtPtr ASTBuilder::buildStatement(rx::Parser::StatementContext *ctx){
@@ -81,12 +79,17 @@ ast::StmtPtr ASTBuilder::buildStatement(rx::Parser::StatementContext *ctx){
         return buildLet(ctx->letStatement());
     }
 
-    throw std::runtime_error("only let statements are supported now");
+    if(ctx->statementExpression() != nullptr){
+        auto expression = buildStatementExpression(ctx->statementExpression());
+    
+        return std::make_unique<ast::ExprStmt>(std::move(expression));
+    }
+
+    throw std::runtime_error("this statement form is not supported yet");
 }
 
 ast::ExprPtr ASTBuilder::buildExpression(rx::Parser::ExpressionContext *ctx){
     auto *assignment = ctx->assignmentExpression();
-    requireSingleChild(assignment);
 
     auto *logicalOr = assignment->logicalOrExpression();
     requireSingleChild(logicalOr);
@@ -109,34 +112,29 @@ ast::ExprPtr ASTBuilder::buildExpression(rx::Parser::ExpressionContext *ctx){
     auto *shift = bitAnd->shiftExpression(0);
     requireSingleChild(shift);
 
-    return buildAdditive(shift->additiveExpression(0));
+    auto left = buildAdditive(shift->additiveExpression(0));
 
-    auto *additive = shift->additiveExpression(0);
-    requireSingleChild(additive);
+    auto *op = assignment->assignmentOperator();
 
-    auto *multiplicative = additive->multiplicativeExpression(0);
-    requireSingleChild(multiplicative);
+    // 没有赋值运算，直接返回原表达式。
+    if (op == nullptr) {
+        return left;
+    }
 
-    auto *cast = multiplicative->castExpression(0);
-    requireSingleChild(cast);
-
-    auto *unary = cast->unaryExpression();
-    requireSingleChild(unary);
-
-    auto *postfix = unary->postfixExpression();
-    requireSingleChild(postfix);
-
-    auto *primary = postfix->primaryExpression();
-    requireSingleChild(primary);
-
-    auto *nonBlock = primary->nonBlockPrimary();
-    if (nonBlock == nullptr || nonBlock->literalExpression() == nullptr) {
+    // 本次只支持 =，暂不支持 += 等复合赋值。
+    if (op->equalsSign() == nullptr) {
         throw std::runtime_error(
-            "only literal expressions are supported for now"
+            "compound assignment is not supported yet"
         );
     }
 
-    return buildLiteral(nonBlock->literalExpression());
+    // 右侧是完整 expression，递归构造。
+    auto right = buildExpression(assignment->expression());
+
+    return std::make_unique<ast::AssignExpr>(
+        std::move(left),
+        std::move(right)
+    );
 }
 
 ast::ExprPtr ASTBuilder::buildLiteral(rx::Parser::LiteralExpressionContext *ctx){
@@ -251,40 +249,7 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
         );
     }
 
-    // 1. 字面量，例如 10。
-    if (nonBlock->literalExpression() != nullptr) {
-        return buildLiteral(nonBlock->literalExpression());
-    }
-
-    // 2. 路径表达式，例如 x。
-    if(nonBlock->pathInExpression() != nullptr){
-        // 同一条语法分支也包含 Point { x: 1 } 这样的结构体构造。
-        // 不能把它误当成普通路径。
-        if (nonBlock->LBRACE() != nullptr) {
-            throw std::runtime_error(
-                "struct construction is not supported yet"
-            );
-        }
-
-        return buildPath(nonBlock->pathInExpression());
-    }
-    
-    // 3. 括号表达式，例如 (x + 2)
-    if (nonBlock->LPAREN() != nullptr) {
-        auto *inner = nonBlock->expression();
-
-        if (inner == nullptr) {
-            throw std::runtime_error(
-                "unit expression () is not supported yet"
-            );
-        }
-
-        return buildExpression(inner);
-    }
-
-    throw std::runtime_error(
-        "this primary expression is not supported yet"
-    );
+    return buildNonBlockPrimary(nonBlock);
 }
 
 ast::ExprPtr ASTBuilder::buildPath(rx::Parser::PathInExpressionContext *ctx){
@@ -321,6 +286,177 @@ ast::ExprPtr ASTBuilder::buildPath(rx::Parser::PathInExpressionContext *ctx){
 
     return std::make_unique<ast::PathExpr>(
         std::move(segments)
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildStatementExpression(rx::Parser::StatementExpressionContext *ctx){
+    auto *assignment = ctx->statementAssignmentExpression();
+
+    auto *logicalOr = assignment->statementLogicalOrExpression();
+    requireSingleChild(logicalOr);
+
+    auto *logicalAnd = logicalOr->statementLogicalAndExpression();
+    requireSingleChild(logicalAnd);
+
+    auto *comparison = logicalAnd->statementComparisonExpression();
+    requireSingleChild(comparison);
+
+    auto *bitOr = comparison->statementBitOrExpression();
+    requireSingleChild(bitOr);
+
+    auto *bitXor = bitOr->statementBitXorExpression();
+    requireSingleChild(bitXor);
+
+    auto *bitAnd = bitXor->statementBitAndExpression();
+    requireSingleChild(bitAnd);
+
+    auto *shift = bitAnd->statementShiftExpression();
+    requireSingleChild(shift);
+
+    auto left = buildStatementAdditive(shift->statementAdditiveExpression());
+
+    auto *op = assignment->assignmentOperator();
+
+    if (op == nullptr) {
+        return left;
+    }
+
+    if (op->equalsSign() == nullptr) {
+        throw std::runtime_error(
+            "compound assignment is not supported yet"
+        );
+    }
+
+    // 注意：右侧回到普通 expression 入口
+    auto right = buildExpression(assignment->expression());
+
+    return std::make_unique<ast::AssignExpr>(
+        std::move(left),
+        std::move(right)
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildStatementAdditive(rx::Parser::StatementAdditiveExpressionContext *ctx) {
+    auto result = buildStatementMultiplicative(ctx->statementMultiplicativeExpression());
+
+    auto operators = ctx->additiveOperator();
+    auto operands = ctx->multiplicativeExpression();
+
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        std::string op = operators[i]->getText();
+        auto right = buildMultiplicative(operands[i]);
+
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildStatementMultiplicative(rx::Parser::StatementMultiplicativeExpressionContext *ctx) {
+    auto result = buildStatementCast(ctx->statementCastExpression());
+
+    auto operators = ctx->multiplicativeOperator();
+    auto operands = ctx->castExpression();
+
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        std::string op = operators[i]->getText();
+        auto right = buildCast(operands[i]);
+
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildStatementCast(rx::Parser::StatementCastExpressionContext *ctx) {
+    if (!ctx->typeRef().empty()) {
+        throw std::runtime_error(
+            "as casts are not supported yet"
+        );
+    }
+
+    return buildStatementUnary(ctx->statementUnaryExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildStatementUnary(rx::Parser::StatementUnaryExpressionContext *ctx) {
+    if (ctx->unaryOperator() != nullptr) {
+        std::string op = ctx->unaryOperator()->getText();
+
+        if (op != "-" && op != "!") {
+            throw std::runtime_error(
+                "this unary operator is not supported yet"
+            );
+        }
+
+        // 语法规定：前缀运算符后面使用普通 unaryExpression。
+        auto operand = buildUnary(ctx->unaryExpression());
+
+        return std::make_unique<ast::UnaryExpr>(
+            std::move(op),
+            std::move(operand)
+        );
+    }
+
+    return buildStatementPostfix(
+        ctx->statementPostfixExpression()
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildStatementPostfix(rx::Parser::StatementPostfixExpressionContext *ctx) {
+    if (ctx->expressionWithBlock() != nullptr ||
+        ctx->dotSuffix() != nullptr ||
+        !ctx->postfixSuffix().empty()) {
+        throw std::runtime_error(
+            "block-leading or postfix expressions are not supported yet"
+        );
+    }
+
+    return buildNonBlockPrimary(ctx->nonBlockPrimary());
+}
+
+ast::ExprPtr ASTBuilder::buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext *ctx){
+    if (ctx == nullptr) {
+        throw std::runtime_error(
+            "expected a non-block primary expression"
+        );
+    }
+
+    if (ctx->literalExpression() != nullptr) {
+        return buildLiteral(ctx->literalExpression());
+    }
+
+    if (ctx->pathInExpression() != nullptr) {
+        if (ctx->LBRACE() != nullptr) {
+            throw std::runtime_error(
+                "struct construction is not supported yet"
+            );
+        }
+
+        return buildPath(ctx->pathInExpression());
+    }
+
+    if (ctx->LPAREN() != nullptr) {
+        auto *inner = ctx->expression();
+
+        if (inner == nullptr) {
+            throw std::runtime_error(
+                "unit expression () is not supported yet"
+            );
+        }
+
+        return buildExpression(inner);
+    }
+
+    throw std::runtime_error(
+        "this primary expression is not supported yet"
     );
 }
 }

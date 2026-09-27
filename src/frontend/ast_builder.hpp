@@ -36,6 +36,21 @@ class ASTBuilder final : public ParserBaseVisitor{
     ast::ExprPtr buildPrimary(rx::Parser::PrimaryExpressionContext *ctx);
 
     ast::ExprPtr buildPath(rx::Parser::PathInExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementExpression(rx::Parser::StatementExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementAdditive(rx::Parser::StatementAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementMultiplicative(rx::Parser::StatementMultiplicativeExpressionContext *ctx);
+    
+    ast::ExprPtr buildStatementCast(rx::Parser::StatementCastExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementUnary(rx::Parser::StatementUnaryExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementPostfix(rx::Parser::StatementPostfixExpressionContext *ctx);
+
+    // 两套表达式入口共用的底层转换。
+    ast::ExprPtr buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext *ctx);
 public:
     std::unique_ptr<ast::Crate> build(rx::Parser::CrateContext *ctx);
 };

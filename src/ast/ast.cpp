@@ -33,7 +33,13 @@ namespace rx::ast{
 
     void LetStmt::dump(std::ostream &out, int indent) const{
         printIndent(out, indent);
-        out << "LetStmt: " << name_ << '\n';
+
+        out << "LetStmt: ";
+        if (isMutable_) {
+            out << "mut ";
+        }
+        out << name_ << '\n';
+
         initializer_->dump(out, indent + 1);
     }
 
@@ -70,5 +76,20 @@ namespace rx::ast{
         }
 
         out << '\n'; 
+    }
+
+    void ExprStmt::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "ExprStmt:\n";
+        expression_->dump(out, indent + 1);
+    }
+
+    void AssignExpr::dump(std::ostream &out, int indent) const {
+        printIndent(out, indent);
+        out << "AssignExpr\n";
+
+        // 第一个孩子是赋值目标，第二个孩子是右侧的值。
+        target_->dump(out, indent + 1);
+        value_->dump(out, indent + 1);
     }
 }
