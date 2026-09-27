@@ -43,18 +43,16 @@ std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::Functio
 }
 
 std::unique_ptr<ast::BlockExpr> ASTBuilder::buildBlock(rx::Parser::BlockExpressionContext *ctx){
-    // 例如 { let x = 1; x } 中，最后的 x 是尾表达式。
-    // 本次暂不支持。
-    if (ctx->statementExpression() != nullptr) {
-        throw std::runtime_error("block tail expressions are not supported yet");
-    }
-
     auto block = std::make_unique<ast::BlockExpr>();
 
     for (auto statementCtx : ctx->statement()) {
         auto statement = buildStatement(statementCtx);
         block->addStatement(std::move(statement));
     }
+    if( ctx->statementExpression() != nullptr){
+        block->setTail(buildStatementExpression(ctx->statementExpression()));
+    }
+    
 
     return block;
 }
@@ -81,8 +79,23 @@ ast::StmtPtr ASTBuilder::buildStatement(rx::Parser::StatementContext *ctx){
 
     if(ctx->statementExpression() != nullptr){
         auto expression = buildStatementExpression(ctx->statementExpression());
-    
         return std::make_unique<ast::ExprStmt>(std::move(expression));
+    }
+
+    if(ctx->expressionWithBlock() != nullptr){
+        auto withBlock = ctx->expressionWithBlock();
+        // 本次只支持普通块。
+        if (withBlock->ifExpression() != nullptr || withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+            throw std::runtime_error{
+                "if, loop and while are not supported yet"
+            };
+        }
+        if(withBlock->blockExpression() != nullptr){
+            auto block = buildBlock(withBlock->blockExpression());
+            return std::make_unique<ast::ExprStmt>(
+                std::move(block)
+            );
+        }
     }
 
     throw std::runtime_error("this statement form is not supported yet");
@@ -241,15 +254,31 @@ ast::ExprPtr ASTBuilder::buildPostfix(rx::Parser::PostfixExpressionContext *ctx)
 }
 
 ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx) {
-    auto *nonBlock = ctx->nonBlockPrimary();
+    auto nonBlock = ctx->nonBlockPrimary();
 
-    if (nonBlock == nullptr) {
-        throw std::runtime_error(
-            "block-like expressions are not supported here yet"
-        );
+    if (nonBlock != nullptr) {
+        return buildNonBlockPrimary(nonBlock);
     }
 
-    return buildNonBlockPrimary(nonBlock);
+    auto withBlock = ctx->expressionWithBlock();
+
+    if (withBlock != nullptr) {
+        if (withBlock->ifExpression() != nullptr || withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+            throw std::runtime_error{
+                "if, loop and while are not supported yet"
+            };
+        }
+
+        auto block = withBlock->blockExpression();
+
+        if (block != nullptr) {
+            return buildBlock(block);
+        }
+    }
+
+    throw std::runtime_error{
+        "unsupported primary expression"
+    };
 }
 
 ast::ExprPtr ASTBuilder::buildPath(rx::Parser::PathInExpressionContext *ctx){

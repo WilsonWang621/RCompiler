@@ -14,6 +14,9 @@ namespace rx::ast{
         for (const auto &statement : stmts_) {
             statement->dump(out, indent + 1);
         }
+        if(tail_ != nullptr){
+            tail_->dump(out, indent + 1);
+        }
     }
 
     void FunctionItem::dump(std::ostream &out, int indent) const {

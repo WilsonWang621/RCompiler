@@ -36,10 +36,16 @@ public:
 
 class BlockExpr final : public Expr{
     std::vector<StmtPtr> stmts_;
+    ExprPtr tail_;
 public:
     void addStatement(StmtPtr statement){ 
         stmts_.push_back(std::move(statement));
     }
+    
+    void setTail(ExprPtr tail){
+        tail_ = std::move(tail);
+    }
+
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
@@ -69,7 +75,7 @@ class ExprStmt final : public Stmt {
     ExprPtr expression_;
 
 public:
-    ExprStmt(ExprPtr expression): expression_(std::move(expression)){};
+    explicit ExprStmt(ExprPtr expression): expression_(std::move(expression)){};
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
