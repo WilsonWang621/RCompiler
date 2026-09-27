@@ -56,4 +56,19 @@ namespace rx::ast{
 
         operand_->dump(out, indent + 1);
     }
+
+    void PathExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "PathExpr: ";
+
+        for (std::size_t i = 0; i < segments_.size(); ++i) {
+            if (i != 0) {
+                out << "::";
+            }
+
+            out << segments_[i];
+        }
+
+        out << '\n'; 
+    }
 }

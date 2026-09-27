@@ -95,4 +95,13 @@ public:
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+class PathExpr final : public Expr{
+    std::vector<std::string> segments_;
+
+public:
+    explicit PathExpr(std::vector<std::string> segments) : segments_(std::move(segments)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 }

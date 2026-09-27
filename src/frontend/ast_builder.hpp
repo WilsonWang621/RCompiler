@@ -34,6 +34,8 @@ class ASTBuilder final : public ParserBaseVisitor{
     ast::ExprPtr buildPostfix(rx::Parser::PostfixExpressionContext *ctx);
 
     ast::ExprPtr buildPrimary(rx::Parser::PrimaryExpressionContext *ctx);
+
+    ast::ExprPtr buildPath(rx::Parser::PathInExpressionContext *ctx);
 public:
     std::unique_ptr<ast::Crate> build(rx::Parser::CrateContext *ctx);
 };

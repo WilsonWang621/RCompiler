@@ -251,12 +251,25 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
         );
     }
 
-    // 分支一：字面量，例如 1。
+    // 1. 字面量，例如 10。
     if (nonBlock->literalExpression() != nullptr) {
         return buildLiteral(nonBlock->literalExpression());
     }
 
-    // 分支二：括号表达式，例如 (1 + 2)。
+    // 2. 路径表达式，例如 x。
+    if(nonBlock->pathInExpression() != nullptr){
+        // 同一条语法分支也包含 Point { x: 1 } 这样的结构体构造。
+        // 不能把它误当成普通路径。
+        if (nonBlock->LBRACE() != nullptr) {
+            throw std::runtime_error(
+                "struct construction is not supported yet"
+            );
+        }
+
+        return buildPath(nonBlock->pathInExpression());
+    }
+    
+    // 3. 括号表达式，例如 (x + 2)
     if (nonBlock->LPAREN() != nullptr) {
         auto *inner = nonBlock->expression();
 
@@ -271,6 +284,43 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
 
     throw std::runtime_error(
         "this primary expression is not supported yet"
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildPath(rx::Parser::PathInExpressionContext *ctx){
+    auto segmentContexts = ctx->pathExprSegment();
+
+    //just support single path for the time being
+    if(segmentContexts.size() != 1){
+        throw std::runtime_error{
+            "only single-segment paths are supported for now"
+        };
+    }
+    auto segmentCtx = segmentContexts[0];
+    // 暂不支持带泛型参数的路径，例如 foo::<i32>。
+    if (segmentCtx->genericArgs() != nullptr) {
+        throw std::runtime_error(
+            "generic arguments in paths are not supported yet"
+        );
+    }
+
+    auto identCtx = segmentCtx->pathIdentSegment();
+
+    // pathIdentSegment 也允许 self 和 Self。
+    // 本关只接受普通 identifier。
+    if (identCtx->identifier() == nullptr) {
+        throw std::runtime_error(
+            "self and Self paths are not supported yet"
+        );
+    }
+
+    std::string name = identCtx->identifier()->getText();
+
+    std::vector<std::string> segments;
+    segments.push_back(std::move(name));
+
+    return std::make_unique<ast::PathExpr>(
+        std::move(segments)
     );
 }
 }
