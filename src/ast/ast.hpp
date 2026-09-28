@@ -141,4 +141,16 @@ public:
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+class IfExpr final : public Expr {
+private:
+    ExprPtr condition_;
+    std::unique_ptr<BlockExpr> thenBranch_;
+    ExprPtr elseBranch_;
+
+public:
+    IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(condition), thenBranch_(thenBranch), elseBranch_(elseBranch){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
 }

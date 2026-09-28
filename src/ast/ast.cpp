@@ -100,4 +100,25 @@ namespace rx::ast{
         target_->dump(out, indent + 1);
         value_->dump(out, indent + 1);
     }
+
+    void IfExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "IfExpr\n";
+
+        printIndent(out, indent + 1);
+        out << "Condition:\n";
+        condition_->dump(out, indent + 2);
+
+        printIndent(out, indent + 1);
+        out << "Then:\n";
+        thenBranch_->dump(out, indent + 2);
+
+        printIndent(out, indent + 1);
+        if(elseBranch_ != nullptr){
+            out << "Else:\n";
+            elseBranch_->dump(out, indent + 2);
+        }else{
+            out << "Else: <none>\n";
+        } 
+    }
 }

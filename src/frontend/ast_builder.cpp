@@ -495,4 +495,8 @@ ast::ExprPtr ASTBuilder::buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext
         "this primary expression is not supported yet"
     );
 }
+    // Boolean operators, comparisons, closed operands and if expressions.
+ast::ExprPtr ASTBuilder::buildConditionExpression(rx::Parser::ConditionExpressionContext *ctx){
+
+}
 }
