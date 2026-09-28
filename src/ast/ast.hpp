@@ -90,6 +90,15 @@ public:
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
+class BooleanLiteralExpr final : public Expr{
+    bool flag_;
+
+public:
+    BooleanLiteralExpr(bool flag): flag_(flag){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
 //1.2
 class BinaryExpr final : public Expr {
 private:

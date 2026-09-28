@@ -151,24 +151,31 @@ ast::ExprPtr ASTBuilder::buildExpression(rx::Parser::ExpressionContext *ctx){
 }
 
 ast::ExprPtr ASTBuilder::buildLiteral(rx::Parser::LiteralExpressionContext *ctx){
-    auto integer = ctx->INTEGER_LITERAL();
-    if(integer == nullptr){
-        throw std::runtime_error{
-             "only integer literals are supported for now"
-        };
-    }
-    std::string text = integer->getText();
+    if(ctx->TRUE() != nullptr || ctx->FALSE() != nullptr){
+        bool flag = ctx->TRUE() != nullptr;
 
-    // 本次仅支持由十进制数字组成的字面量。
-    // 暂不处理进制前缀、下划线和类型后缀。
-    if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos) {
-        throw std::runtime_error(
-            "only unsuffixed decimal integer literals are supported for now"
+        return std::make_unique<ast::BooleanLiteralExpr>(flag);
+    }
+
+    auto integer = ctx->INTEGER_LITERAL();
+    if(integer != nullptr){
+        std::string text = integer->getText();
+
+        // 本次仅支持由十进制数字组成的字面量。
+        // 暂不处理进制前缀、下划线和类型后缀。
+        if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos) {
+            throw std::runtime_error(
+                "only unsuffixed decimal integer literals are supported for now"
+            );
+        }
+
+        return std::make_unique<ast::IntegerLiteralExpr>(
+            std::move(text)
         );
     }
 
-    return std::make_unique<ast::IntegerLiteralExpr>(
-        std::move(text)
+    throw std::runtime_error(
+        "only integer and boolean literals are supported for now"
     );
 }
 

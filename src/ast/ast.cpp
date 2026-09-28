@@ -51,6 +51,11 @@ namespace rx::ast{
         out << "IntegerLiteral: " << text_ << '\n';
     }
 
+    void BooleanLiteralExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "Boolean: " << (flag_ ? "true" : "false") << '\n';
+    }
+
     void BinaryExpr::dump(std::ostream &out, int indent) const {
         printIndent(out, indent);
         out << "BinaryExpr: " << op_ << '\n';
