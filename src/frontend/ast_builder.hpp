@@ -51,6 +51,111 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     // 两套表达式入口共用的底层转换。
     ast::ExprPtr buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext *ctx);
+
+    // Boolean operators, comparisons, closed operands and if expressions.
+    ast::ExprPtr buildConditionExpression(rx::Parser::ConditionExpressionContext *ctx);
+
+    ast::ExprPtr buildBitOr(rx::Parser::BitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildBitXor(rx::Parser::BitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildBitAnd(rx::Parser::BitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildShift(rx::Parser::ShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedBitOr(rx::Parser::ClosedBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedBitXor(rx::Parser::ClosedBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedBitAnd(rx::Parser::ClosedBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedShift(rx::Parser::ClosedShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildLogicalOr(rx::Parser::LogicalOrExpressionContext *ctx);
+
+    ast::ExprPtr buildLogicalAnd(rx::Parser::LogicalAndExpressionContext *ctx);
+
+    ast::ExprPtr buildComparison(rx::Parser::ComparisonExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedAdditive(rx::Parser::ClosedAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedMultiplicative(rx::Parser::ClosedMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildClosedCast(rx::Parser::ClosedCastExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementBitOr(rx::Parser::StatementBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementBitXor(rx::Parser::StatementBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementBitAnd(rx::Parser::StatementBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementShift(rx::Parser::StatementShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedBitOr(rx::Parser::StatementClosedBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedBitXor(rx::Parser::StatementClosedBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedBitAnd(rx::Parser::StatementClosedBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedShift(rx::Parser::StatementClosedShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementLogicalOr(rx::Parser::StatementLogicalOrExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementLogicalAnd(rx::Parser::StatementLogicalAndExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementComparison(rx::Parser::StatementComparisonExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedAdditive(rx::Parser::StatementClosedAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedMultiplicative(rx::Parser::StatementClosedMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildStatementClosedCast(rx::Parser::StatementClosedCastExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBitOr(rx::Parser::ConditionBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBitXor(rx::Parser::ConditionBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBitAnd(rx::Parser::ConditionBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionShift(rx::Parser::ConditionShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedBitOr(rx::Parser::ConditionClosedBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedBitXor(rx::Parser::ConditionClosedBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedBitAnd(rx::Parser::ConditionClosedBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedShift(rx::Parser::ConditionClosedShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionLogicalOr(rx::Parser::ConditionLogicalOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionLogicalAnd(rx::Parser::ConditionLogicalAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionComparison(rx::Parser::ConditionComparisonExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedAdditive(rx::Parser::ConditionClosedAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedMultiplicative(rx::Parser::ConditionClosedMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionClosedCast(rx::Parser::ConditionClosedCastExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionAdditive(rx::Parser::ConditionAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionMultiplicative(rx::Parser::ConditionMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionCast(rx::Parser::ConditionCastExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionUnary(rx::Parser::ConditionUnaryExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionPostfix(rx::Parser::ConditionPostfixExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionPrimary(rx::Parser::ConditionPrimaryContext *ctx);
+
+    ast::ExprPtr buildConditionPrimaryWithoutBareBlock(rx::Parser::ConditionPrimaryWithoutBareBlockContext *ctx);
+
+    ast::ExprPtr buildIf(rx::Parser::IfExpressionContext *ctx);
+
+    ast::ExprPtr buildExpressionWithBlock(rx::Parser::ExpressionWithBlockContext *ctx);
 public:
     std::unique_ptr<ast::Crate> build(rx::Parser::CrateContext *ctx);
 };
