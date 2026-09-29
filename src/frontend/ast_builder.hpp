@@ -55,6 +55,7 @@ class ASTBuilder final : public ParserBaseVisitor{
     // Boolean operators, comparisons, closed operands and if expressions.
     ast::ExprPtr buildConditionExpression(rx::Parser::ConditionExpressionContext *ctx);
 
+    //No prefix: Ordinary expression
     ast::ExprPtr buildBitOr(rx::Parser::BitOrExpressionContext *ctx);
 
     ast::ExprPtr buildBitXor(rx::Parser::BitXorExpressionContext *ctx);
@@ -63,6 +64,7 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildShift(rx::Parser::ShiftExpressionContext *ctx);
 
+    //The "closed" prefix: handles ambiguity between < and generic parameters
     ast::ExprPtr buildClosedBitOr(rx::Parser::ClosedBitOrExpressionContext *ctx);
 
     ast::ExprPtr buildClosedBitXor(rx::Parser::ClosedBitXorExpressionContext *ctx);
@@ -83,6 +85,7 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildClosedCast(rx::Parser::ClosedCastExpressionContext *ctx);
 
+    //statement prefix: The expression that enters from the beginning of the statement.
     ast::ExprPtr buildStatementBitOr(rx::Parser::StatementBitOrExpressionContext *ctx);
 
     ast::ExprPtr buildStatementBitXor(rx::Parser::StatementBitXorExpressionContext *ctx);
@@ -111,6 +114,7 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildStatementClosedCast(rx::Parser::StatementClosedCastExpressionContext *ctx);
 
+    //condition prefix: The expression in the condition position
     ast::ExprPtr buildConditionBitOr(rx::Parser::ConditionBitOrExpressionContext *ctx);
 
     ast::ExprPtr buildConditionBitXor(rx::Parser::ConditionBitXorExpressionContext *ctx);

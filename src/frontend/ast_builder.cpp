@@ -497,6 +497,194 @@ ast::ExprPtr ASTBuilder::buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext
 }
     // Boolean operators, comparisons, closed operands and if expressions.
 ast::ExprPtr ASTBuilder::buildConditionExpression(rx::Parser::ConditionExpressionContext *ctx){
+    auto assignment = ctx->conditionAssignmentExpression();
+    
+    auto left = buildConditionLogicalOr(assignment->conditionLogicalOrExpression());
+    auto op = assignment->assignmentOperator();
 
+    if(op == nullptr){
+        return left;
+    }
+    if(op->equalsSign() == nullptr){
+        throw std::runtime_error{"compound assignment is not supported yet"};
+    }
+
+    auto right = buildConditionExpression(assignment->conditionExpression());
+
+    return std::make_unique<ast::AssignExpr>(
+        std::move(left),
+        std::move(right)
+    );
 }
+
+ast::ExprPtr ASTBuilder::buildBitOr(rx::Parser::BitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildBitXor(ctx->bitXorExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildBitXor(rx::Parser::BitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildBitAnd(ctx->bitAndExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildBitAnd(rx::Parser::BitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildShift(ctx->shiftExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildShift(rx::Parser::ShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildAdditive(ctx->additiveExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildClosedBitOr(rx::Parser::ClosedBitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildClosedBitXor(ctx->closedBitXorExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildClosedBitXor(rx::Parser::ClosedBitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildClosedBitAnd(ctx->closedBitAndExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildClosedBitAnd(rx::Parser::ClosedBitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildClosedShift(ctx->closedShiftExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildClosedShift(rx::Parser::ClosedShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildClosedAdditive(ctx->closedAdditiveExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildLogicalOr(rx::Parser::LogicalOrExpressionContext *ctx){
+    auto operands = ctx->logicalAndExpression();
+    auto result = buildLogicalAnd(operands[0]);
+
+    for(std::size_t i = 1; i < operands.size(); ++i){
+        auto right = buildLogicalAnd(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "||",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildLogicalAnd(rx::Parser::LogicalAndExpressionContext *ctx){
+    auto operands = ctx->comparisonExpression();
+    auto result = buildComparison(operands[0]);
+
+    for(std::size_t i = 1; i < operands.size(); ++i){
+        auto right = buildComparison(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "&&",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildComparison(rx::Parser::ComparisonExpressionContext *ctx){
+    //closedBitOrExpression LT bitOrExpression
+    if(ctx->LT() != nullptr){
+        auto left = buildClosedBitOr(ctx->closedBitOrExpression());
+        auto right = buildBitOr(ctx->bitOrExpression(0));
+        
+        return std::make_unique<ast::BinaryExpr>(
+            "<",
+            std::move(left),
+            std::move(right)
+        );
+    }
+
+    //bitOrExpression (comparisonExceptLt bitOrExpression)?
+    auto left = buildBitOr(ctx->bitOrExpression(0));
+    if(ctx->comparisonExceptLt() == nullptr){
+        return left;
+    }
+    std::string op = ctx->comparisonExceptLt()->getText();
+    auto right = buildBitOr(ctx->bitOrExpression(1));
+
+    return std::make_unique<ast::BinaryExpr>(
+        op,
+        left,
+        right
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildClosedAdditive(rx::Parser::ClosedAdditiveExpressionContext *ctx){
+    auto operands = ctx->multiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+
+    if(operands.empty()){
+        return buildClosedMultiplicative(ctx->closedMultiplicativeExpression());
+    }
+    
+    auto result = buildMultiplicative(operands[0]);
+    for(size_t i = 0; i < operators.size(); i++){
+        std::string op = operators[i]->getText();
+        ast::ExprPtr right;
+        if(i + 1 < operands.size()){
+            right = buildMultiplicative(operands[i + 1]);
+        }else{
+            right = buildClosedMultiplicative(ctx->closedMultiplicativeExpression());
+        }
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildClosedMultiplicative(rx::Parser::ClosedMultiplicativeExpressionContext *ctx){
+    auto operands = ctx->castExpression();
+    auto operators = ctx->multiplicativeOperator();
+
+    if(operands.empty()){
+        return buildClosedCast(ctx->closedCastExpression());
+    }
+
+    auto result = buildCast(operands[0]);
+    for(size_t i = 0; i < operators.size(); i++){
+        std::string op = operators[i]->getText();
+        ast::ExprPtr right;
+        if(i + 1 < operands.size()){
+            right = buildCast(operands[i + 1]);
+        }
+        else{
+            right = buildClosedCast(ctx->closedCastExpression());
+        }
+
+        result = std::make_unique<ast::BinaryExpr>(
+            op,
+            result,
+            right
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildClosedCast(rx::Parser::ClosedCastExpressionContext *ctx){
+    if(ctx->unaryExpression() == nullptr){
+        throw std::runtime_error{"as casts are not supported yet"};
+    }
+    return buildUnary(ctx->unaryExpression());
+}
+
+//statement prefix: The expression that enters from the beginning of the statement.
+
+// ast::ExprPtr ASTBuilder::buildConditionLogicalOr(rx::Parser::ConditionLogicalOrExpressionContext *ctx){
+//     auto operands = ctx->logicalAndExpression();
+//     auto result = buildStatementLogicalAnd(ctx->statementLogicalAndExpression());
+
+//     for(int i = 0; i < operands.size(); i++){
+//         auto right = buildConditionComparison()
+//     }
+
+// }
 }
