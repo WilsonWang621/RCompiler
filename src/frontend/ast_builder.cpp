@@ -831,13 +831,237 @@ ast::ExprPtr ASTBuilder::buildStatementClosedCast(rx::Parser::StatementClosedCas
     return buildStatementUnary(ctx->statementUnaryExpression());
 }
 
-// ast::ExprPtr ASTBuilder::buildConditionLogicalOr(rx::Parser::ConditionLogicalOrExpressionContext *ctx){
-//     auto operands = ctx->logicalAndExpression();
-//     auto result = buildStatementLogicalAnd(ctx->statementLogicalAndExpression());
+ast::ExprPtr ASTBuilder::buildConditionBitOr(rx::Parser::ConditionBitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBitXor(ctx->conditionBitXorExpression(0));
+}
 
-//     for(int i = 0; i < operands.size(); i++){
-//         auto right = buildConditionComparison()
-//     }
+ast::ExprPtr ASTBuilder::buildConditionBitXor(rx::Parser::ConditionBitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBitAnd(ctx->conditionBitAndExpression(0));
+}
 
-// }
+ast::ExprPtr ASTBuilder::buildConditionBitAnd(rx::Parser::ConditionBitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionShift(ctx->conditionShiftExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildConditionShift(rx::Parser::ConditionShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionAdditive(ctx->conditionAdditiveExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedBitOr(rx::Parser::ConditionClosedBitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionClosedBitXor(ctx->conditionClosedBitXorExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedBitXor(rx::Parser::ConditionClosedBitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionClosedBitAnd(ctx->conditionClosedBitAndExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedBitAnd(rx::Parser::ConditionClosedBitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionClosedShift(ctx->conditionClosedShiftExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedShift(rx::Parser::ConditionClosedShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionClosedAdditive(ctx->conditionClosedAdditiveExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildConditionLogicalOr(rx::Parser::ConditionLogicalOrExpressionContext *ctx){
+    auto operands = ctx->conditionLogicalAndExpression();
+    auto result = buildConditionLogicalAnd(operands[0]);
+
+    for(std::size_t i = 1; i < operands.size(); ++i){
+        auto right = buildConditionLogicalAnd(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "||",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionLogicalAnd(rx::Parser::ConditionLogicalAndExpressionContext *ctx){
+    auto operands = ctx->conditionComparisonExpression();
+    auto result = buildConditionComparison(operands[0]);
+
+    for(std::size_t i = 1; i < operands.size(); ++i){
+        auto right = buildConditionComparison(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "&&",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+
+ast::ExprPtr ASTBuilder::buildConditionComparison(rx::Parser::ConditionComparisonExpressionContext *ctx){
+    if(ctx->LT() != nullptr){
+        auto left = buildConditionClosedBitOr(ctx->conditionClosedBitOrExpression());
+        auto right = buildConditionBitOr(ctx->conditionBitOrExpression(0));
+        return std::make_unique<ast::BinaryExpr>(
+            "<",
+            std::move(left),
+            std::move(right)
+        );
+    }
+
+    auto left = buildConditionBitOr(ctx->conditionBitOrExpression(0));
+    auto *op = ctx->comparisonExceptLt();
+    if(op == nullptr){
+        return left;
+    }
+
+    auto right = buildConditionBitOr(ctx->conditionBitOrExpression(1));
+    return std::make_unique<ast::BinaryExpr>(
+        op->getText(),
+        std::move(left),
+        std::move(right)
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedAdditive(rx::Parser::ConditionClosedAdditiveExpressionContext *ctx){
+    auto operands = ctx->conditionMultiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+    if(operands.empty()){
+        return buildConditionClosedMultiplicative(ctx->conditionClosedMultiplicativeExpression());
+    }
+
+    auto result = buildConditionMultiplicative(operands[0]);
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        std::string op = operators[i]->getText();
+        ast::ExprPtr right;
+        if(i + 1 < operands.size()){
+            right = buildConditionMultiplicative(operands[i + 1]);
+        }else{
+            right = buildConditionClosedMultiplicative(ctx->conditionClosedMultiplicativeExpression());
+        }
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedMultiplicative(rx::Parser::ConditionClosedMultiplicativeExpressionContext *ctx){
+    auto operands = ctx->conditionCastExpression();
+    auto operators = ctx->multiplicativeOperator();
+    if(operands.empty()){
+        return buildConditionClosedCast(ctx->conditionClosedCastExpression());
+    }
+
+    auto result = buildConditionCast(operands[0]);
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        std::string op = operators[i]->getText();
+        ast::ExprPtr right;
+        if(i + 1 < operands.size()){
+            right = buildConditionCast(operands[i + 1]);
+        }else{
+            right = buildConditionClosedCast(ctx->conditionClosedCastExpression());
+        }
+        result = std::make_unique<ast::BinaryExpr>(
+            std::move(op),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionClosedCast(rx::Parser::ConditionClosedCastExpressionContext *ctx){
+    if(ctx->conditionUnaryExpression() == nullptr){
+        throw std::runtime_error{"as casts are not supported yet"};
+    }
+    return buildConditionUnary(ctx->conditionUnaryExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionUnary(rx::Parser::ConditionUnaryExpressionContext *ctx){
+    if(ctx->unaryOperator() != nullptr){
+        std::string op = ctx->unaryOperator()->getText();
+        if(op != "!" && op != "-"){
+            throw std::runtime_error{"this unary operator is not supported yet"};
+        }
+
+        auto operand = buildConditionUnary(ctx->conditionUnaryExpression());
+        return std::make_unique<ast::UnaryExpr>(
+            op,
+            operand
+        );
+    }
+    
+    return buildConditionPostfix(ctx->conditionPostfixExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionPostfix(rx::Parser::ConditionPostfixExpressionContext *ctx){
+    if(!ctx->postfixSuffix().empty()){
+        throw std::runtime_error{"postfix operations are not supported yet"};
+    }
+    return buildConditionPrimary(ctx->conditionPrimary());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionPrimary(rx::Parser::ConditionPrimaryContext *ctx){
+    if(ctx->blockExpression() != nullptr){
+        return buildBlock(ctx->blockExpression());
+    }
+    return buildConditionPrimaryWithoutBareBlock(ctx->conditionPrimaryWithoutBareBlock());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionPrimaryWithoutBareBlock(rx::Parser::ConditionPrimaryWithoutBareBlockContext *ctx){
+    if(ctx->literalExpression() != nullptr){
+        return buildLiteral(ctx->literalExpression());
+    }
+    if(ctx->pathInExpression() != nullptr){
+        return buildPath(ctx->pathInExpression());
+    }
+    if(ctx->LPAREN() != nullptr){
+        if(ctx->expression() == nullptr){
+            throw std::runtime_error{"unit expression () is not supported yet"};
+        }
+        return buildExpression(ctx->expression());
+    }
+    if(ctx->ifExpression() != nullptr){
+        return buildIf(ctx->ifExpression());
+    }
+    throw std::runtime_error{"this condition primary is not supported yet"};
+}
+
+ast::ExprPtr ASTBuilder::buildIf(rx::Parser::IfExpressionContext *ctx){
+    auto condition = buildConditionExpression(ctx->conditionExpression());
+    auto thenBranch = buildBlock(ctx->blockExpression(0));
+    ast::ExprPtr elseBranch;
+
+    if(ctx->ifExpression() != nullptr){
+        elseBranch = buildIf(ctx->ifExpression());
+    }else if(ctx->blockExpression().size() == 2){
+        elseBranch = buildBlock(ctx->blockExpression(1));
+    }
+
+    return std::make_unique<ast::IfExpr>(
+        std::move(condition),
+        std::move(thenBranch),
+        std::move(elseBranch)
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildExpressionWithBlock(rx::Parser::ExpressionWithBlockContext *ctx){
+    if(ctx->LOOP() != nullptr || ctx->WHILE() != nullptr){
+        throw std::runtime_error{"loop and while are not supported yet"};
+    }
+    if(ctx->ifExpression() != nullptr){
+        return buildIf(ctx->ifExpression());
+    }
+    if(ctx->blockExpression() != nullptr){
+        return buildBlock(ctx->blockExpression());
+    }
+    throw std::runtime_error{"this expression with block is not supported yet"};
+}
 }
