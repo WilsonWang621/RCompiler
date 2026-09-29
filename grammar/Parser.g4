@@ -337,7 +337,7 @@ conditionBitXorExpression
     ;
 
 conditionClosedBitXorExpression
-    : (conConditionAdditiveConditionAdditiveditionBitAndExpression CARET)* conditionClosedBitAndExpression
+    : (conditionBitAndExpression CARET)* conditionClosedBitAndExpression
     ;
 
 conditionBitAndExpression
