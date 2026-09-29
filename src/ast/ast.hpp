@@ -149,7 +149,7 @@ private:
     ExprPtr elseBranch_;
 
 public:
-    IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(condition), thenBranch_(thenBranch), elseBranch_(elseBranch){};
+    IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(std::move(condition)), thenBranch_(std::move(thenBranch)), elseBranch_(std::move(elseBranch)) {}
 
     void dump(std::ostream &out, int indent = 0) const override;
 };

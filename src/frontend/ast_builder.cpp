@@ -85,15 +85,21 @@ ast::StmtPtr ASTBuilder::buildStatement(rx::Parser::StatementContext *ctx){
     if(ctx->expressionWithBlock() != nullptr){
         auto withBlock = ctx->expressionWithBlock();
         // 本次只支持普通块。
-        if (withBlock->ifExpression() != nullptr || withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+        if (withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
             throw std::runtime_error{
-                "if, loop and while are not supported yet"
+                "loop and while are not supported yet"
             };
         }
         if(withBlock->blockExpression() != nullptr){
             auto block = buildBlock(withBlock->blockExpression());
             return std::make_unique<ast::ExprStmt>(
                 std::move(block)
+            );
+        }
+        if(withBlock->ifExpression() != nullptr){
+            auto ifExpression = buildIf(withBlock->ifExpression());
+            return std::make_unique<ast::ExprStmt>(
+                std::move(ifExpression)
             );
         }
     }
@@ -105,27 +111,7 @@ ast::ExprPtr ASTBuilder::buildExpression(rx::Parser::ExpressionContext *ctx){
     auto *assignment = ctx->assignmentExpression();
 
     auto *logicalOr = assignment->logicalOrExpression();
-    requireSingleChild(logicalOr);
-
-    auto *logicalAnd = logicalOr->logicalAndExpression(0);
-    requireSingleChild(logicalAnd);
-
-    auto *comparison = logicalAnd->comparisonExpression(0);
-    requireSingleChild(comparison);
-
-    auto *bitOr = comparison->bitOrExpression(0);
-    requireSingleChild(bitOr);
-
-    auto *bitXor = bitOr->bitXorExpression(0);
-    requireSingleChild(bitXor);
-
-    auto *bitAnd = bitXor->bitAndExpression(0);
-    requireSingleChild(bitAnd);
-
-    auto *shift = bitAnd->shiftExpression(0);
-    requireSingleChild(shift);
-
-    auto left = buildAdditive(shift->additiveExpression(0));
+    auto left = buildLogicalOr(logicalOr);
 
     auto *op = assignment->assignmentOperator();
 
@@ -270,9 +256,9 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
     auto withBlock = ctx->expressionWithBlock();
 
     if (withBlock != nullptr) {
-        if (withBlock->ifExpression() != nullptr || withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+        if (withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
             throw std::runtime_error{
-                "if, loop and while are not supported yet"
+                "loop and while are not supported yet"
             };
         }
 
@@ -280,6 +266,11 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
 
         if (block != nullptr) {
             return buildBlock(block);
+        }
+
+        auto ifExpression = withBlock->ifExpression();
+        if(ifExpression != nullptr){
+            return buildIf(ifExpression);
         }
     }
 
@@ -329,27 +320,7 @@ ast::ExprPtr ASTBuilder::buildStatementExpression(rx::Parser::StatementExpressio
     auto *assignment = ctx->statementAssignmentExpression();
 
     auto *logicalOr = assignment->statementLogicalOrExpression();
-    requireSingleChild(logicalOr);
-
-    auto *logicalAnd = logicalOr->statementLogicalAndExpression();
-    requireSingleChild(logicalAnd);
-
-    auto *comparison = logicalAnd->statementComparisonExpression();
-    requireSingleChild(comparison);
-
-    auto *bitOr = comparison->statementBitOrExpression();
-    requireSingleChild(bitOr);
-
-    auto *bitXor = bitOr->statementBitXorExpression();
-    requireSingleChild(bitXor);
-
-    auto *bitAnd = bitXor->statementBitAndExpression();
-    requireSingleChild(bitAnd);
-
-    auto *shift = bitAnd->statementShiftExpression();
-    requireSingleChild(shift);
-
-    auto left = buildStatementAdditive(shift->statementAdditiveExpression());
+    auto left = buildStatementLogicalOr(logicalOr);
 
     auto *op = assignment->assignmentOperator();
 
@@ -610,8 +581,8 @@ ast::ExprPtr ASTBuilder::buildComparison(rx::Parser::ComparisonExpressionContext
 
     return std::make_unique<ast::BinaryExpr>(
         op,
-        left,
-        right
+        std::move(left),
+        std::move(right)
     );
 }
 
@@ -661,9 +632,9 @@ ast::ExprPtr ASTBuilder::buildClosedMultiplicative(rx::Parser::ClosedMultiplicat
         }
 
         result = std::make_unique<ast::BinaryExpr>(
-            op,
-            result,
-            right
+            std::move(op),
+            std::move(result),
+            std::move(right)
         );
     }
     return result;
@@ -754,8 +725,8 @@ ast::ExprPtr ASTBuilder::buildStatementComparison(rx::Parser::StatementCompariso
 
         return std::make_unique<ast::BinaryExpr>(
             "<",
-            left,
-            right
+            std::move(left),
+            std::move(right)
         );
     }
 
@@ -849,6 +820,45 @@ ast::ExprPtr ASTBuilder::buildConditionBitAnd(rx::Parser::ConditionBitAndExpress
 ast::ExprPtr ASTBuilder::buildConditionShift(rx::Parser::ConditionShiftExpressionContext *ctx){
     requireSingleChild(ctx);
     return buildConditionAdditive(ctx->conditionAdditiveExpression(0));
+}
+
+ast::ExprPtr ASTBuilder::buildConditionAdditive(rx::Parser::ConditionAdditiveExpressionContext *ctx){
+    auto operands = ctx->conditionMultiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+    auto result = buildConditionMultiplicative(operands[0]);
+
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        auto right = buildConditionMultiplicative(operands[i + 1]);
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionMultiplicative(rx::Parser::ConditionMultiplicativeExpressionContext *ctx){
+    auto operands = ctx->conditionCastExpression();
+    auto operators = ctx->multiplicativeOperator();
+    auto result = buildConditionCast(operands[0]);
+
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+        auto right = buildConditionCast(operands[i + 1]);
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionCast(rx::Parser::ConditionCastExpressionContext *ctx){
+    if (!ctx->typeRef().empty()) {
+        throw std::runtime_error("as casts are not supported yet");
+    }
+    return buildConditionUnary(ctx->conditionUnaryExpression());
 }
 
 ast::ExprPtr ASTBuilder::buildConditionClosedBitOr(rx::Parser::ConditionClosedBitOrExpressionContext *ctx){
@@ -994,7 +1004,7 @@ ast::ExprPtr ASTBuilder::buildConditionUnary(rx::Parser::ConditionUnaryExpressio
         auto operand = buildConditionUnary(ctx->conditionUnaryExpression());
         return std::make_unique<ast::UnaryExpr>(
             op,
-            operand
+            std::move(operand)
         );
     }
     
