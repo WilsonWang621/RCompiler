@@ -37,9 +37,37 @@ std::unique_ptr<ast::Item> ASTBuilder::buildItem(rx::Parser::ItemContext *ctx){
 
 std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::FunctionDefinitionContext *ctx){
     std::string name = ctx->identifier()->getText();
+
+    std::vector<std::unique_ptr<ast::FunctionParam>> parameters;
+
+    if (auto *parametersCtx = ctx->functionParameters()) {
+        if (parametersCtx->selfParam() != nullptr) {
+            throw std::runtime_error{
+                "self parameter is not supported yet"
+            };
+        }
+
+        for (auto *parameterCtx : parametersCtx->functionParam()) {
+            parameters.push_back(
+                buildFunctionParam(parameterCtx)
+            );
+        }
+    }
+
+    std::unique_ptr<ast::TypeRef> returnType;
+
+    if (ctx->typeRef() != nullptr) {
+        returnType = buildTypeRef(ctx->typeRef());
+    }
+
     auto body = buildBlock(ctx->blockExpression());
 
-    return std::make_unique<ast::FunctionItem>(std::move(name), std::move(body));
+    return std::make_unique<ast::FunctionItem>(
+        std::move(name),
+        std::move(parameters),
+        std::move(returnType),
+        std::move(body)
+    );
 }
 
 std::unique_ptr<ast::BlockExpr> ASTBuilder::buildBlock(rx::Parser::BlockExpressionContext *ctx){

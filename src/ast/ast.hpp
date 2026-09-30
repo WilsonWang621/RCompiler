@@ -4,7 +4,7 @@
 #include<memory>
 #include<string>
 #include<iostream>
-
+#include <optional>
 namespace rx::ast{
 
 struct ASTNode{
@@ -45,6 +45,52 @@ public:
     void setTail(ExprPtr tail){
         tail_ = std::move(tail);
     }
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class FunctionParam : public ASTNode {
+public:
+    ~FunctionParam() override = default;
+};
+
+class TypeRef final : public ASTNode{
+private:
+    std::string type_;
+public:
+    TypeRef(std::string type) : type_(std::move(type)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class NamedFunctionParam final : public FunctionParam {
+private:
+    std::string name_;
+    bool isMutable_;
+    std::unique_ptr<TypeRef> type_;
+
+public:
+    NamedFunctionParam(std::string name, bool isMutable, std::unique_ptr<TypeRef> type)
+        : name_(std::move(name)), isMutable_(isMutable), type_(std::move(type)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class SelfFunctionParam final : public FunctionParam {
+private:
+    bool isReference_;
+    bool isMutable_;
+    std::optional<std::string> lifetime_;
+
+public:
+    SelfFunctionParam(
+        size_t isReference,     //self:0 &self:1 &&self:2
+        bool isMutable,
+        std::optional<std::string> lifetime
+    )
+        : isReference_(isReference),
+          isMutable_(isMutable),
+          lifetime_(std::move(lifetime)) {}
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
@@ -157,27 +203,6 @@ private:
 
 public:
     IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(std::move(condition)), thenBranch_(std::move(thenBranch)), elseBranch_(std::move(elseBranch)) {}
-
-    void dump(std::ostream &out, int indent = 0) const override;
-};
-
-class TypeRef final : public ASTNode{
-private:
-    std::string type_;
-public:
-    TypeRef(std::string type) : type_(std::move(type)){};
-
-    void dump(std::ostream &out, int indent = 0) const override;
-};
-
-class FunctionParam final : public ASTNode {
-private:
-    std::string name_;
-    bool isMutable_;
-    std::unique_ptr<TypeRef> type_;
-public:
-    public:
-    FunctionParam(std::string name, bool isMutable, std::unique_ptr<TypeRef> type): name_(std::move(name)), isMutable_(isMutable), type_(std::move(type)) {}
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
