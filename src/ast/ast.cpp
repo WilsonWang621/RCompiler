@@ -22,7 +22,15 @@ namespace rx::ast{
     void FunctionItem::dump(std::ostream &out, int indent) const {
         printIndent(out, indent);
         out << "Function: " << name_ << '\n';
+        for (const auto &parameter : parameters_) {
+            parameter->dump(out, indent + 1);
+        }
 
+        if (returnType_ != nullptr) {
+            printIndent(out, indent + 1);
+            out << "ReturnType\n";
+            returnType_->dump(out, indent + 2);
+        }
         body_->dump(out, indent + 1);
     }
 
@@ -120,5 +128,20 @@ namespace rx::ast{
         }else{
             out << "Else: <none>\n";
         } 
+    }
+
+    void TypeRef::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "TypeRef: " << type_ << '\n';
+    }
+
+    void FunctionParam::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);;
+        out << "Parameter: ";
+        if (isMutable_) {
+            out << "mut ";
+        }
+        out << name_ << '\n';
+        type_->dump(out, indent + 1);
     }
 }

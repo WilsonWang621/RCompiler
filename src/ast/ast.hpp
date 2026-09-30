@@ -52,11 +52,18 @@ public:
 class FunctionItem final : public Item{
 private:
     std::string name_;
+    std::vector<std::unique_ptr<FunctionParam>> parameters_;
+    std::unique_ptr<TypeRef> returnType_;  // nullptr 表示没有写 -> 类型
     std::unique_ptr<BlockExpr> body_;
 public:
-    FunctionItem(std::string name, std::unique_ptr<BlockExpr> body):name_(std::move(name)), body_(std::move(body)){};
-        
-    void dump(std::ostream &out, int indent = 0) const override;
+    FunctionItem(
+        std::string name,
+        std::vector<std::unique_ptr<FunctionParam>> parameters,
+        std::unique_ptr<TypeRef> returnType,
+        std::unique_ptr<BlockExpr> body
+    ): name_(std::move(name)), parameters_(std::move(parameters)), returnType_(std::move(returnType)), body_(std::move(body)) {}
+
+    void dump(std::ostream &out, int indent) const override;
 };
 
 //version 1.1
@@ -150,6 +157,27 @@ private:
 
 public:
     IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(std::move(condition)), thenBranch_(std::move(thenBranch)), elseBranch_(std::move(elseBranch)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class TypeRef final : public ASTNode{
+private:
+    std::string type_;
+public:
+    TypeRef(std::string type) : type_(std::move(type)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class FunctionParam final : public ASTNode {
+private:
+    std::string name_;
+    bool isMutable_;
+    std::unique_ptr<TypeRef> type_;
+public:
+    public:
+    FunctionParam(std::string name, bool isMutable, std::unique_ptr<TypeRef> type): name_(std::move(name)), isMutable_(isMutable), type_(std::move(type)) {}
 
     void dump(std::ostream &out, int indent = 0) const override;
 };

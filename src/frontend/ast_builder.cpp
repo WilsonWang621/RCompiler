@@ -1074,4 +1074,32 @@ ast::ExprPtr ASTBuilder::buildExpressionWithBlock(rx::Parser::ExpressionWithBloc
     }
     throw std::runtime_error{"this expression with block is not supported yet"};
 }
+
+std::unique_ptr<ast::FunctionParam> ASTBuilder::buildFunctionParam(rx::Parser::FunctionParamContext *ctx){
+    auto binding = ctx->identifierBinding();
+
+    std::string name = binding->identifier()->getText();
+    bool isMutable = binding->MUT() != nullptr;
+    auto type = buildTypeRef(ctx->typeRef());
+
+    return std::make_unique<ast::FunctionParam>(
+        std::move(name),
+        isMutable,
+        std::move(type)
+    );
+}
+
+std::unique_ptr<ast::TypeRef> ASTBuilder::buildTypeRef(rx::Parser::TypeRefContext *ctx){
+    if(ctx->typePath() != nullptr){
+        return std::make_unique<ast::TypeRef>(
+            ctx->typePath()->getText()
+        );
+    }
+
+    if (ctx->LPAREN() != nullptr && ctx->typeRef() == nullptr) {
+        return std::make_unique<ast::TypeRef>("()");
+    }
+
+    throw std::runtime_error("this type form is not supported yet");
+}
 }
