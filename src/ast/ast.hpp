@@ -228,6 +228,22 @@ public:
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
+// 与 return 一样，break 和 continue 都作为表达式节点构建。
+// 循环归属和 break 值的合法性留给语义分析判断。
+class BreakExpr final : public Expr{
+private:
+    ExprPtr value_;   // nullptr 表示 break;，否则持有 break 后面的值。
+public:
+    explicit BreakExpr(ExprPtr value): value_(std::move(value)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class ContinueExpr final : public Expr{
+public:
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
 // while condition { ... }：节点分别持有条件表达式和循环体。
 class WhileExpr final : public Expr{
 private:

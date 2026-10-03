@@ -184,6 +184,23 @@ namespace rx::ast{
         
     }
 
+    void BreakExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "BreakExpr\n";
+
+        if(value_ != nullptr){
+            value_->dump(out, indent + 1);
+        }else{
+            printIndent(out, indent + 1);
+            out << "<no value>\n";
+        }
+    }
+
+    void ContinueExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "ContinueExpr\n";
+    }
+
     void ReturnExpr::dump(std::ostream &out, int indent) const {
         printIndent(out, indent);
         out << "ReturnExpr\n";

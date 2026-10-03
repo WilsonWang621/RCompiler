@@ -157,6 +157,47 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildConditionPrimaryWithoutBareBlock(rx::Parser::ConditionPrimaryWithoutBareBlockContext *ctx);
 
+    // conditionBreak 前缀：break 在条件位置的值，首个 primary 不能是裸块。
+    ast::ExprPtr buildConditionBreakExpression(rx::Parser::ConditionBreakExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakLogicalOr(rx::Parser::ConditionBreakLogicalOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakLogicalAnd(rx::Parser::ConditionBreakLogicalAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakComparison(rx::Parser::ConditionBreakComparisonExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakBitOr(rx::Parser::ConditionBreakBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakBitXor(rx::Parser::ConditionBreakBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakBitAnd(rx::Parser::ConditionBreakBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakShift(rx::Parser::ConditionBreakShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedBitOr(rx::Parser::ConditionBreakClosedBitOrExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedBitXor(rx::Parser::ConditionBreakClosedBitXorExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedBitAnd(rx::Parser::ConditionBreakClosedBitAndExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedShift(rx::Parser::ConditionBreakClosedShiftExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakAdditive(rx::Parser::ConditionBreakAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakMultiplicative(rx::Parser::ConditionBreakMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakCast(rx::Parser::ConditionBreakCastExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedAdditive(rx::Parser::ConditionBreakClosedAdditiveExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedMultiplicative(rx::Parser::ConditionBreakClosedMultiplicativeExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakClosedCast(rx::Parser::ConditionBreakClosedCastExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakUnary(rx::Parser::ConditionBreakUnaryExpressionContext *ctx);
+
+    ast::ExprPtr buildConditionBreakPostfix(rx::Parser::ConditionBreakPostfixExpressionContext *ctx);
+
     ast::ExprPtr buildIf(rx::Parser::IfExpressionContext *ctx);
 
     // while 在两条语法规则中出现，共用条件和循环体的构建逻辑。

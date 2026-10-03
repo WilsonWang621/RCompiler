@@ -489,6 +489,23 @@ ast::ExprPtr ASTBuilder::buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext
         return buildPath(ctx->pathInExpression());
     }
 
+    // 语句入口也会走到这里，由 buildStatement 在外层包装 ExprStmt。
+    if(ctx->CONTINUE() != nullptr){
+        return std::make_unique<ast::ContinueExpr>();
+    }
+
+    if(ctx->BREAK() != nullptr){
+        ast::ExprPtr value;
+        // 普通位置允许 break 后面跟完整表达式，也允许省略值。
+        if(ctx->expression() != nullptr){
+            value = buildExpression(ctx->expression());
+        }
+
+        return std::make_unique<ast::BreakExpr>(
+            std::move(value)
+        );
+    }
+
     if(ctx->RETURN() != nullptr){
         ast::ExprPtr value;
 
@@ -1098,6 +1115,20 @@ ast::ExprPtr ASTBuilder::buildConditionPrimaryWithoutBareBlock(rx::Parser::Condi
     if(ctx->ifExpression() != nullptr){
         return buildIf(ctx->ifExpression());
     }
+    if(ctx->CONTINUE() != nullptr){
+        return std::make_unique<ast::ContinueExpr>();
+    }
+    if(ctx->BREAK() != nullptr){
+        ast::ExprPtr value;
+        // 使用专门的条件入口，避免把 if / while 后面的块当成 break 的值。
+        if(ctx->conditionBreakExpression() != nullptr){
+            value = buildConditionBreakExpression(ctx->conditionBreakExpression());
+        }
+
+        return std::make_unique<ast::BreakExpr>(
+            std::move(value)
+        );
+    }
     if(ctx->RETURN() != nullptr){
         ast::ExprPtr value;
         if(ctx->conditionExpression() != nullptr){
@@ -1109,6 +1140,241 @@ ast::ExprPtr ASTBuilder::buildConditionPrimaryWithoutBareBlock(rx::Parser::Condi
         ); 
     }
     throw std::runtime_error{"this condition primary is not supported yet"};
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakExpression(rx::Parser::ConditionBreakExpressionContext *ctx){
+    auto assignment = ctx->conditionBreakAssignmentExpression();
+    auto left = buildConditionBreakLogicalOr(assignment->conditionBreakLogicalOrExpression());
+    auto op = assignment->assignmentOperator();
+
+    if(op == nullptr){
+        return left;
+    }
+    if(op->equalsSign() == nullptr){
+        throw std::runtime_error{"compound assignment is not supported yet"};
+    }
+
+    // 只有首个操作数使用 conditionBreak 规则，后续操作数回到普通条件入口。
+    auto right = buildConditionExpression(assignment->conditionExpression());
+    return std::make_unique<ast::AssignExpr>(
+        std::move(left),
+        std::move(right)
+    );
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakLogicalOr(rx::Parser::ConditionBreakLogicalOrExpressionContext *ctx){
+    auto operands = ctx->conditionLogicalAndExpression();
+    auto result = buildConditionBreakLogicalAnd(ctx->conditionBreakLogicalAndExpression());
+
+    for(std::size_t i = 0; i < operands.size(); ++i){
+        auto right = buildConditionLogicalAnd(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "||",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakLogicalAnd(rx::Parser::ConditionBreakLogicalAndExpressionContext *ctx){
+    auto operands = ctx->conditionComparisonExpression();
+    auto result = buildConditionBreakComparison(ctx->conditionBreakComparisonExpression());
+
+    for(std::size_t i = 0; i < operands.size(); ++i){
+        auto right = buildConditionComparison(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            "&&",
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakComparison(rx::Parser::ConditionBreakComparisonExpressionContext *ctx){
+    if(ctx->LT() != nullptr){
+        auto left = buildConditionBreakClosedBitOr(ctx->conditionBreakClosedBitOrExpression());
+        auto right = buildConditionBitOr(ctx->conditionBitOrExpression());
+        return std::make_unique<ast::BinaryExpr>(
+            "<",
+            std::move(left),
+            std::move(right)
+        );
+    }
+
+    auto left = buildConditionBreakBitOr(ctx->conditionBreakBitOrExpression());
+    auto *op = ctx->comparisonExceptLt();
+    if(op == nullptr){
+        return left;
+    }
+
+    auto right = buildConditionBitOr(ctx->conditionBitOrExpression());
+    return std::make_unique<ast::BinaryExpr>(
+        op->getText(),
+        std::move(left),
+        std::move(right)
+    );
+}
+
+// 与现有表达式入口保持一致，位运算和移位暂时只穿过单孩子规则。
+ast::ExprPtr ASTBuilder::buildConditionBreakBitOr(rx::Parser::ConditionBreakBitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakBitXor(ctx->conditionBreakBitXorExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakBitXor(rx::Parser::ConditionBreakBitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakBitAnd(ctx->conditionBreakBitAndExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakBitAnd(rx::Parser::ConditionBreakBitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakShift(ctx->conditionBreakShiftExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakShift(rx::Parser::ConditionBreakShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakAdditive(ctx->conditionBreakAdditiveExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedBitOr(rx::Parser::ConditionBreakClosedBitOrExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakClosedBitXor(ctx->conditionBreakClosedBitXorExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedBitXor(rx::Parser::ConditionBreakClosedBitXorExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakClosedBitAnd(ctx->conditionBreakClosedBitAndExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedBitAnd(rx::Parser::ConditionBreakClosedBitAndExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakClosedShift(ctx->conditionBreakClosedShiftExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedShift(rx::Parser::ConditionBreakClosedShiftExpressionContext *ctx){
+    requireSingleChild(ctx);
+    return buildConditionBreakClosedAdditive(ctx->conditionBreakClosedAdditiveExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakAdditive(rx::Parser::ConditionBreakAdditiveExpressionContext *ctx){
+    auto operands = ctx->conditionMultiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+    auto result = buildConditionBreakMultiplicative(ctx->conditionBreakMultiplicativeExpression());
+
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        auto right = buildConditionMultiplicative(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakMultiplicative(rx::Parser::ConditionBreakMultiplicativeExpressionContext *ctx){
+    auto operands = ctx->conditionCastExpression();
+    auto operators = ctx->multiplicativeOperator();
+    auto result = buildConditionBreakCast(ctx->conditionBreakCastExpression());
+
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        auto right = buildConditionCast(operands[i]);
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakCast(rx::Parser::ConditionBreakCastExpressionContext *ctx){
+    if(!ctx->typeRef().empty()){
+        throw std::runtime_error{"as casts are not supported yet"};
+    }
+    return buildConditionBreakUnary(ctx->conditionBreakUnaryExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedAdditive(rx::Parser::ConditionBreakClosedAdditiveExpressionContext *ctx){
+    if(ctx->conditionBreakClosedMultiplicativeExpression() != nullptr){
+        return buildConditionBreakClosedMultiplicative(ctx->conditionBreakClosedMultiplicativeExpression());
+    }
+
+    auto result = buildConditionBreakMultiplicative(ctx->conditionBreakMultiplicativeExpression());
+    auto operands = ctx->conditionMultiplicativeExpression();
+    auto operators = ctx->additiveOperator();
+    // closed 分支的最后一个操作数使用 closed 入口，供外层的 < 正确解析。
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        ast::ExprPtr right;
+        if(i < operands.size()){
+            right = buildConditionMultiplicative(operands[i]);
+        }else{
+            right = buildConditionClosedMultiplicative(ctx->conditionClosedMultiplicativeExpression());
+        }
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedMultiplicative(rx::Parser::ConditionBreakClosedMultiplicativeExpressionContext *ctx){
+    if(ctx->conditionBreakClosedCastExpression() != nullptr){
+        return buildConditionBreakClosedCast(ctx->conditionBreakClosedCastExpression());
+    }
+
+    auto result = buildConditionBreakCast(ctx->conditionBreakCastExpression());
+    auto operands = ctx->conditionCastExpression();
+    auto operators = ctx->multiplicativeOperator();
+    for(std::size_t i = 0; i < operators.size(); ++i){
+        ast::ExprPtr right;
+        if(i < operands.size()){
+            right = buildConditionCast(operands[i]);
+        }else{
+            right = buildConditionClosedCast(ctx->conditionClosedCastExpression());
+        }
+        result = std::make_unique<ast::BinaryExpr>(
+            operators[i]->getText(),
+            std::move(result),
+            std::move(right)
+        );
+    }
+    return result;
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakClosedCast(rx::Parser::ConditionBreakClosedCastExpressionContext *ctx){
+    if(ctx->conditionBreakUnaryExpression() == nullptr){
+        throw std::runtime_error{"as casts are not supported yet"};
+    }
+    return buildConditionBreakUnary(ctx->conditionBreakUnaryExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakUnary(rx::Parser::ConditionBreakUnaryExpressionContext *ctx){
+    if(ctx->unaryOperator() != nullptr){
+        std::string op = ctx->unaryOperator()->getText();
+        if(op != "!" && op != "-"){
+            throw std::runtime_error{"this unary operator is not supported yet"};
+        }
+
+        // 前缀运算符后的操作数使用普通条件规则，例如 break -{ 1 }。
+        auto operand = buildConditionUnary(ctx->conditionUnaryExpression());
+        return std::make_unique<ast::UnaryExpr>(
+            std::move(op),
+            std::move(operand)
+        );
+    }
+    return buildConditionBreakPostfix(ctx->conditionBreakPostfixExpression());
+}
+
+ast::ExprPtr ASTBuilder::buildConditionBreakPostfix(rx::Parser::ConditionBreakPostfixExpressionContext *ctx){
+    if(!ctx->postfixSuffix().empty()){
+        throw std::runtime_error{"postfix operations are not supported yet"};
+    }
+    return buildConditionPrimaryWithoutBareBlock(ctx->conditionPrimaryWithoutBareBlock());
 }
 
 ast::ExprPtr ASTBuilder::buildIf(rx::Parser::IfExpressionContext *ctx){
