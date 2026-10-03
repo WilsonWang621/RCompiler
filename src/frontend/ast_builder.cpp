@@ -38,12 +38,20 @@ std::unique_ptr<ast::Item> ASTBuilder::buildItem(rx::Parser::ItemContext *ctx){
 std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::FunctionDefinitionContext *ctx){
     std::string name = ctx->identifier()->getText();
 
+    std::unique_ptr<ast::SelfFunctionParam> selfParam;
     std::vector<std::unique_ptr<ast::FunctionParam>> parameters;
 
     if (auto *params = ctx->functionParameters()) {
         if (auto *self = params->selfParam()) {
             parameters.push_back(buildSelfParam(self));
         }
+
+        if (params->selfParam() != nullptr) {
+            selfParam = buildSelfParam(
+                params->selfParam()
+            );
+        }
+
         for (auto *param : params->functionParam()) {
             parameters.push_back(buildNamedParam(param));
         }
@@ -471,6 +479,20 @@ ast::ExprPtr ASTBuilder::buildNonBlockPrimary(rx::Parser::NonBlockPrimaryContext
         }
 
         return buildPath(ctx->pathInExpression());
+    }
+
+    if(ctx->RETURN() != nullptr){
+        ast::ExprPtr value;
+
+        if (ctx->expression() != nullptr) {
+            value = buildExpression(
+                ctx->expression()
+            );
+        }
+
+        return std::make_unique<ast::ReturnExpr>(
+            std::move(value)
+        ); 
     }
 
     if (ctx->LPAREN() != nullptr) {
@@ -1064,6 +1086,16 @@ ast::ExprPtr ASTBuilder::buildConditionPrimaryWithoutBareBlock(rx::Parser::Condi
     if(ctx->ifExpression() != nullptr){
         return buildIf(ctx->ifExpression());
     }
+    if(ctx->RETURN() != nullptr){
+        ast::ExprPtr value;
+        if(ctx->conditionExpression() != nullptr){
+            value = buildConditionExpression(ctx->conditionExpression());
+        }
+        
+        return std::make_unique<ast::ReturnExpr>(
+            std::move(value)
+        ); 
+    }
     throw std::runtime_error{"this condition primary is not supported yet"};
 }
 
@@ -1126,7 +1158,7 @@ std::unique_ptr<ast::TypeRef> ASTBuilder::buildTypeRef(rx::Parser::TypeRefContex
     throw std::runtime_error("this type form is not supported yet");
 }
 
-std::unique_ptr<ast::FunctionParam> ASTBuilder::buildSelfParam(rx::Parser::SelfParamContext *ctx) {
+std::unique_ptr<ast::SelfFunctionParam> ASTBuilder::buildSelfParam(rx::Parser::SelfParamContext *ctx) {
     bool isReference = ctx->AMP() != nullptr;
     bool isMutable = ctx->MUT() != nullptr;
 
@@ -1140,6 +1172,21 @@ std::unique_ptr<ast::FunctionParam> ASTBuilder::buildSelfParam(rx::Parser::SelfP
         isReference,
         isMutable,
         std::move(lifetime)
+    );
+}
+
+std::unique_ptr<ast::FunctionParam> ASTBuilder::buildFunctionParam(rx::Parser::FunctionParamContext *ctx){
+    auto bindings = ctx->identifierBinding();
+    auto identifier = bindings->identifier();
+
+    std::string name = identifier->getText();
+    bool isMutable = bindings->MUT();
+    auto type = buildTypeRef(ctx->typeRef());
+
+    return std::make_unique<ast::FunctionParam>(
+        std::move(name),
+        isMutable,
+        std::move(type)
     );
 }
 }

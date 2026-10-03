@@ -98,16 +98,18 @@ public:
 class FunctionItem final : public Item{
 private:
     std::string name_;
-    std::vector<std::unique_ptr<FunctionParam>> parameters_;
+    std::unique_ptr<SelfFunctionParam> selfParam_;   // nullptr 表示没有 self 参数
+    std::vector<std::unique_ptr<FunctionParam>> parameters_;  // 可以为空，表示没有普通参数
     std::unique_ptr<TypeRef> returnType_;  // nullptr 表示没有写 -> 类型
     std::unique_ptr<BlockExpr> body_;
 public:
     FunctionItem(
         std::string name,
+        std::unique_ptr<SelfFunctionParam> selfParam,
         std::vector<std::unique_ptr<FunctionParam>> parameters,
         std::unique_ptr<TypeRef> returnType,
         std::unique_ptr<BlockExpr> body
-    ): name_(std::move(name)), parameters_(std::move(parameters)), returnType_(std::move(returnType)), body_(std::move(body)) {}
+    ): name_(std::move(name)), selfParam_(std::move(selfParam)), parameters_(std::move(parameters)), returnType_(std::move(returnType)), body_(std::move(body)) {}
 
     void dump(std::ostream &out, int indent) const override;
 };
@@ -216,4 +218,14 @@ public:
 
     void dump(std::ostream &out, int indent = 0) const override;
 };
+
+class ReturnExpr final : public Expr{  //occur twice in parser.g4 nonblockPrimary & conditionPrimaryWithoutBareBlock 
+private:
+    ExprPtr value_;   //nullptr : return;
+public:
+    explicit ReturnExpr(ExprPtr value): value_(std::move(value)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
 }
