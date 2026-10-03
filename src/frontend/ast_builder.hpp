@@ -159,6 +159,9 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildIf(rx::Parser::IfExpressionContext *ctx);
 
+    // while 在两条语法规则中出现，共用条件和循环体的构建逻辑。
+    ast::ExprPtr buildWhile(rx::Parser::ConditionExpressionContext *conditionCtx, rx::Parser::BlockExpressionContext *blockCtx);
+
     ast::ExprPtr buildExpressionWithBlock(rx::Parser::ExpressionWithBlockContext *ctx);
 
     std::unique_ptr<ast::FunctionParam> buildNamedParam(rx::Parser::FunctionParamContext *ctx);

@@ -228,4 +228,16 @@ public:
     void dump(std::ostream &out, int indent = 0) const override;
 };
 
+// while condition { ... }：节点分别持有条件表达式和循环体。
+class WhileExpr final : public Expr{
+private:
+    ExprPtr condition_;
+    std::unique_ptr<BlockExpr> block_;
+public:
+    WhileExpr(ExprPtr condition, std::unique_ptr<BlockExpr> block): condition_(std::move(condition)), block_(std::move(block)){};
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
 }
+

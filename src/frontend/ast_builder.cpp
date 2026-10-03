@@ -42,10 +42,6 @@ std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::Functio
     std::vector<std::unique_ptr<ast::FunctionParam>> parameters;
 
     if (auto *params = ctx->functionParameters()) {
-        if (auto *self = params->selfParam()) {
-            parameters.push_back(buildSelfParam(self));
-        }
-
         if (params->selfParam() != nullptr) {
             selfParam = buildSelfParam(
                 params->selfParam()
@@ -67,6 +63,7 @@ std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::Functio
 
     return std::make_unique<ast::FunctionItem>(
         std::move(name),
+        std::move(selfParam),
         std::move(parameters),
         std::move(returnType),
         std::move(body)
@@ -115,10 +112,17 @@ ast::StmtPtr ASTBuilder::buildStatement(rx::Parser::StatementContext *ctx){
 
     if(ctx->expressionWithBlock() != nullptr){
         auto withBlock = ctx->expressionWithBlock();
-        // 本次只支持普通块。
-        if (withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+        // while 是表达式；出现在语句位置时，外层包装为 ExprStmt。
+        if(withBlock->WHILE() != nullptr){
+            auto whileExpression = buildWhile(withBlock->conditionExpression(), withBlock->blockExpression());
+            return std::make_unique<ast::ExprStmt>(
+                std::move(whileExpression)
+            );
+        }
+        // 暂不支持 loop。
+        if (withBlock->LOOP() != nullptr) {
             throw std::runtime_error{
-                "loop and while are not supported yet"
+                "loop is not supported yet"
             };
         }
         if(withBlock->blockExpression() != nullptr){
@@ -287,9 +291,13 @@ ast::ExprPtr ASTBuilder::buildPrimary(rx::Parser::PrimaryExpressionContext *ctx)
     auto withBlock = ctx->expressionWithBlock();
 
     if (withBlock != nullptr) {
-        if (withBlock->LOOP() != nullptr || withBlock->WHILE() != nullptr) {
+        // 普通表达式入口，例如 let x = while false {};。
+        if(withBlock->WHILE() != nullptr){
+            return buildWhile(withBlock->conditionExpression(), withBlock->blockExpression());
+        }
+        if (withBlock->LOOP() != nullptr) {
             throw std::runtime_error{
-                "loop and while are not supported yet"
+                "loop is not supported yet"
             };
         }
 
@@ -1071,6 +1079,10 @@ ast::ExprPtr ASTBuilder::buildConditionPrimary(rx::Parser::ConditionPrimaryConte
 }
 
 ast::ExprPtr ASTBuilder::buildConditionPrimaryWithoutBareBlock(rx::Parser::ConditionPrimaryWithoutBareBlockContext *ctx){
+    // 条件位置也有独立的 while 语法分支，AST 构建阶段统一处理。
+    if(ctx->WHILE() != nullptr){
+        return buildWhile(ctx->conditionExpression(), ctx->blockExpression());
+    }
     if(ctx->literalExpression() != nullptr){
         return buildLiteral(ctx->literalExpression());
     }
@@ -1117,9 +1129,27 @@ ast::ExprPtr ASTBuilder::buildIf(rx::Parser::IfExpressionContext *ctx){
     );
 }
 
+ast::ExprPtr ASTBuilder::buildWhile(rx::Parser::ConditionExpressionContext *conditionCtx, rx::Parser::BlockExpressionContext *blockCtx){
+    // 与 if 共用条件表达式入口，保留比较、逻辑运算等表达式的优先级。
+    auto condition = buildConditionExpression(conditionCtx);
+    // 递归构建循环体中的语句和尾表达式，也支持嵌套 while。
+    auto block = buildBlock(blockCtx);
+
+    // 将两个子节点的所有权交给 WhileExpr。
+    return std::make_unique<ast::WhileExpr>(
+        std::move(condition),
+        std::move(block)
+    );
+}
+
 ast::ExprPtr ASTBuilder::buildExpressionWithBlock(rx::Parser::ExpressionWithBlockContext *ctx){
-    if(ctx->LOOP() != nullptr || ctx->WHILE() != nullptr){
-        throw std::runtime_error{"loop and while are not supported yet"};
+    //判断 WHILE、LOOP 必须放在普通块判断前面
+    // 循环分支也包含 blockExpression，先判断普通块会丢失循环信息。
+    if(ctx->WHILE() != nullptr){
+        return buildWhile(ctx->conditionExpression(), ctx->blockExpression());
+    }
+    if(ctx->LOOP() != nullptr){
+        throw std::runtime_error{"loop is not supported yet"};
     }
     if(ctx->ifExpression() != nullptr){
         return buildIf(ctx->ifExpression());
@@ -1137,7 +1167,7 @@ std::unique_ptr<ast::FunctionParam> ASTBuilder::buildNamedParam(rx::Parser::Func
     bool isMutable = binding->MUT() != nullptr;
     auto type = buildTypeRef(ctx->typeRef());
 
-    return std::make_unique<ast::FunctionParam>(
+    return std::make_unique<ast::NamedFunctionParam>(
         std::move(name),
         isMutable,
         std::move(type)
@@ -1183,7 +1213,7 @@ std::unique_ptr<ast::FunctionParam> ASTBuilder::buildFunctionParam(rx::Parser::F
     bool isMutable = bindings->MUT();
     auto type = buildTypeRef(ctx->typeRef());
 
-    return std::make_unique<ast::FunctionParam>(
+    return std::make_unique<ast::NamedFunctionParam>(
         std::move(name),
         isMutable,
         std::move(type)
