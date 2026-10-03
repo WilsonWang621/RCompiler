@@ -161,9 +161,11 @@ class ASTBuilder final : public ParserBaseVisitor{
 
     ast::ExprPtr buildExpressionWithBlock(rx::Parser::ExpressionWithBlockContext *ctx);
 
-    std::unique_ptr<ast::FunctionParam> buildFunctionParam(rx::Parser::FunctionParamContext *ctx);
+    std::unique_ptr<ast::FunctionParam> buildNamedParam(rx::Parser::FunctionParamContext *ctx);
 
     std::unique_ptr<ast::TypeRef> buildTypeRef(rx::Parser::TypeRefContext *ctx);
+
+    std::unique_ptr<ast::FunctionParam> buildSelfParam(rx::Parser::SelfParamContext *ctx);
 public:
     std::unique_ptr<ast::Crate> build(rx::Parser::CrateContext *ctx);
 };

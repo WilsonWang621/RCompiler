@@ -135,8 +135,8 @@ namespace rx::ast{
         out << "TypeRef: " << type_ << '\n';
     }
 
-    void FunctionParam::dump(std::ostream &out, int indent) const{
-        printIndent(out, indent);;
+    void NamedFunctionParam::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
         out << "Parameter: ";
         if (isMutable_) {
             out << "mut ";
@@ -144,4 +144,25 @@ namespace rx::ast{
         out << name_ << '\n';
         type_->dump(out, indent + 1);
     }
+
+    void SelfFunctionParam::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        out << "Parameter: ";
+        if (isReference_) {
+            out << '&';
+            if (lifetime_) {
+                out << *lifetime_ << ' ';
+            }
+        }
+        if (isMutable_) {
+            out << "mut ";
+        }
+        out << "self\n";
+    }
+
+    void CallExpr::dump(std::ostream &out, int indent) const{
+        printIndent(out, indent);
+        
+    }
 }
+

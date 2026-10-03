@@ -84,7 +84,7 @@ private:
 
 public:
     SelfFunctionParam(
-        size_t isReference,     //self:0 &self:1 &&self:2
+        bool isReference,
         bool isMutable,
         std::optional<std::string> lifetime
     )
@@ -203,6 +203,16 @@ private:
 
 public:
     IfExpr(ExprPtr condition, std::unique_ptr<BlockExpr> thenBranch, ExprPtr elseBranch): condition_(std::move(condition)), thenBranch_(std::move(thenBranch)), elseBranch_(std::move(elseBranch)) {}
+
+    void dump(std::ostream &out, int indent = 0) const override;
+};
+
+class CallExpr final : public Expr{
+    ExprPtr callee_;
+    std::vector<ExprPtr> arguments_;
+
+public:
+    CallExpr(ExprPtr callee, std::vector<ExprPtr> argument) : callee_(std::move(callee)), arguments_(std::move(argument)){};
 
     void dump(std::ostream &out, int indent = 0) const override;
 };

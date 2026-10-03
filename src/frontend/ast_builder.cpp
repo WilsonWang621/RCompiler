@@ -40,17 +40,12 @@ std::unique_ptr<ast::FunctionItem> ASTBuilder::buildFunction(rx::Parser::Functio
 
     std::vector<std::unique_ptr<ast::FunctionParam>> parameters;
 
-    if (auto *parametersCtx = ctx->functionParameters()) {
-        if (parametersCtx->selfParam() != nullptr) {
-            throw std::runtime_error{
-                "self parameter is not supported yet"
-            };
+    if (auto *params = ctx->functionParameters()) {
+        if (auto *self = params->selfParam()) {
+            parameters.push_back(buildSelfParam(self));
         }
-
-        for (auto *parameterCtx : parametersCtx->functionParam()) {
-            parameters.push_back(
-                buildFunctionParam(parameterCtx)
-            );
+        for (auto *param : params->functionParam()) {
+            parameters.push_back(buildNamedParam(param));
         }
     }
 
@@ -1103,7 +1098,7 @@ ast::ExprPtr ASTBuilder::buildExpressionWithBlock(rx::Parser::ExpressionWithBloc
     throw std::runtime_error{"this expression with block is not supported yet"};
 }
 
-std::unique_ptr<ast::FunctionParam> ASTBuilder::buildFunctionParam(rx::Parser::FunctionParamContext *ctx){
+std::unique_ptr<ast::FunctionParam> ASTBuilder::buildNamedParam(rx::Parser::FunctionParamContext *ctx){
     auto binding = ctx->identifierBinding();
 
     std::string name = binding->identifier()->getText();
@@ -1129,5 +1124,22 @@ std::unique_ptr<ast::TypeRef> ASTBuilder::buildTypeRef(rx::Parser::TypeRefContex
     }
 
     throw std::runtime_error("this type form is not supported yet");
+}
+
+std::unique_ptr<ast::FunctionParam> ASTBuilder::buildSelfParam(rx::Parser::SelfParamContext *ctx) {
+    bool isReference = ctx->AMP() != nullptr;
+    bool isMutable = ctx->MUT() != nullptr;
+
+    std::optional<std::string> lifetime;
+
+    if (ctx->lifetime() != nullptr) {
+        lifetime = ctx->lifetime()->getText();
+    }
+
+    return std::make_unique<ast::SelfFunctionParam>(
+        isReference,
+        isMutable,
+        std::move(lifetime)
+    );
 }
 }
